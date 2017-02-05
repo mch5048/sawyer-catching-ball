@@ -1,0 +1,3 @@
+float64[] SO3
+---
+geometry_msgs/Pose pose
