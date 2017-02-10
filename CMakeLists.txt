@@ -58,6 +58,7 @@ add_service_files(
   FILES
   FwdKin.srv
   SO3ToPose.srv
+  PoseToSO3.srv
 )
 
 ## Generate actions in the 'action' folder

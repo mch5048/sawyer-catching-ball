@@ -5,15 +5,19 @@
   <node pkg="robot_state_publisher" type="robot_state_publisher" name="rob_st_pub" >
     <remap from="joint_states" to="robot/joint_states" />
   </node>
-  <!-- <node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher" output="screen" args="_use_gui:=false"/> -->
+
+  
+  <!-- <node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher" output="screen" args="_use_gui:=true"/> -->
+
   <node pkg="tf2_ros" type="static_transform_publisher" name="test_base_to_world" args="0 0 0 0 0 0 1 world base" />
-  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sawyer_catching_ball)/urdf.rviz" required="true" /> -->
   <node name="rviz" pkg="rviz" type="rviz"  args="-d $(find sawyer_description)config/sawyer.rviz"/>
   
 
   <node name="fwd_kin" pkg="sawyer_catching_ball" type="fwd_kin.py" />
   <node name="SO3_to_pose" pkg="sawyer_catching_ball" type="SO3_to_pose.py" />
-  <node name="sawyer_sim" pkg="sawyer_catching_ball" type="sawyer_sim.py" />
+  <node name="pose_to_SO3" pkg="sawyer_catching_ball" type="pose_to_SO3.py" />
+  <!-- <node name="kin_cont_node" pkg="sawyer_catching_ball" type="kin_cont_node.py" /> -->
+  <!-- <node name="sawyer_sim" pkg="sawyer_catching_ball" type="sawyer_sim.py" /> -->
 
 
 </launch>

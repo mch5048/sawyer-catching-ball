@@ -3,7 +3,7 @@ from sawyer_catching_ball.srv import FwdKin, SO3ToPose
 import rospy
 from robot_calc_functions import FKinBody
 import numpy as np
-from math import cos, sin
+from math import cos, sin, radians
 
 def fwd_kin_calc(req):
 
@@ -19,16 +19,26 @@ def fwd_kin_calc(req):
             th_list[i-1] = req.position[i]
 
     #specify M and Blist
-    s10 = sin(10) 
-    c10 = cos(10)
-    Blist = np.array([[s10, -c10, 0., -1.0155*c10, -1.0155*s10, 0.1603],
+    s10 = sin(radians(10)) 
+    c10 = cos(radians(10))
+    # Blist = np.array([[s10, -c10, 0., -1.0155*c10, -1.0155*s10, 0.1603],
+    #                   [-c10, -s10, 0., -0.9345*s10, 0.9345*c10, 0.],
+    #                   [0. , 0., 1., -0.0322*s10, 0.0322*c10, 0.],
+    #                   [-c10, -s10, 0., -0.5345*s10, 0.5345*c10, 0.],
+    #                   [0., 0., 1., 0.1363*s10, -0.1363*c10, 0.],
+    #                   [-c10, -s10, 0., -01345*s10, 0.1345*c10, 0.],
+    #                   [0., 0., 1., 0., 0., 0.]], 
+    #                  dtype=np.float64)
+    #check at Mon Feb 6 change[0][5] and [5][3]
+    Blist = np.array([[s10, -c10, 0., -1.0155*c10, -1.0155*s10, -0.1603],
                       [-c10, -s10, 0., -0.9345*s10, 0.9345*c10, 0.],
                       [0. , 0., 1., -0.0322*s10, 0.0322*c10, 0.],
                       [-c10, -s10, 0., -0.5345*s10, 0.5345*c10, 0.],
                       [0., 0., 1., 0.1363*s10, -0.1363*c10, 0.],
-                      [-c10, -s10, 0., -01345*s10, 0.1345*c10, 0.],
+                      [-c10, -s10, 0., -0.1345*s10, 0.1345*c10, 0.],
                       [0., 0., 1., 0., 0., 0.]], 
                      dtype=np.float64)
+
     M = np.array([[0., 0., 1., 1.0155],
                   [-c10, -s10, 0., 0.1603],
                   [s10, -c10, 0., 0.317],

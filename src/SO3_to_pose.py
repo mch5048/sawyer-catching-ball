@@ -8,7 +8,7 @@ from sawyer_catching_ball.srv import (
     SO3ToPose
 )
 
-""" service for SO3 to geometry_msgs/Pose"""
+""" service for converting SO3 to geometry_msgs/Pose"""
 
 # from Jarvis Schultz's quarternion calculation
 def so3_to_axis_angle(R):
