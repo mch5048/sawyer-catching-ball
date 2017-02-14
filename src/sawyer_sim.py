@@ -72,7 +72,7 @@ def velocity_control_server(joints_vel_command, (pres_joint_state, pres_endpoint
     We care only joint0 to joint 6.
     """
     #time step in sec
-    dt = 0.2 #5 Hz = 12 secs 
+    dt = 0.2 #5 Hz = 0.2 secs 
     
     #change joint_state according to dt and JointCommand
     for i in range(9):        

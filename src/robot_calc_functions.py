@@ -573,6 +573,8 @@ Output:
                 JbAdj = MatrixExp6(matmult(matmult(Blist[len(Blist)-1],-1),thetalist[len(Blist)-1])) 
                 for j in range (len(Blist)-2-i):
                     JbAdj = matmult(JbAdj,MatrixExp6(matmult(matmult(Blist[len(Blist)-j-2],-1),thetalist[len(Blist)-j-2]))) 
+                    # JbAdj = matmult(MatrixExp6(matmult(matmult(Blist[len(Blist)-j-2],-1),thetalist[len(Blist)-j-2])),JbAdj)
+                    
                
                 JbAdj = Adjoint(JbAdj)
                 Jb[i] = matmult(JbAdj,Blist[i]) 

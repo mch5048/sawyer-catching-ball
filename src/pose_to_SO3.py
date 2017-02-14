@@ -9,7 +9,7 @@ from sawyer_catching_ball.srv import (
 )
 from robot_calc_functions import matmult
 
-""" service for converting SO3 to geometry_msgs/Pose"""
+""" service for converting geometry_msgs/Pose to SO3 """
 
 # from Jarvis Schultz's quarternion calculation
 def quat_to_axis_angle(Q):
@@ -43,7 +43,7 @@ def pose_to_SO3_calc(req):
     qw = req.pose.orientation.w
 
 
-    #convert quarternion to SE3
+    #convert quarternion to SO3
     Q = [qw, qx, qy, qz]
     R = quat_to_so3(Q)
 
@@ -60,38 +60,6 @@ def pose_to_SO3_calc(req):
     
     #flatten SE3 for output
     return SE3.flatten()
-
-
-    #reshape 1*16 tuple to 4*4 array
-    SO3_rs = np.zeros((4,4), dtype=np.float64)
-    count = 0
-    for i in range(4):
-        for j in range(4):
-            SO3_rs[i][j] = req.SO3[count]
-            count+=1
-
-    #extract the rotational matrix portion out of SE3
-    R = np.zeros((3,3),dtype=np.float64)
-    for row in range(3):
-        for column in range(3):
-            R[row][column] = SO3_rs[row][column]
-
-    pose = Pose()
-
-
-    #get quat and put in Pose
-    quat = so3_to_quat(R)
-    pose.orientation.w = quat[0] 
-    pose.orientation.x = quat[1]
-    pose.orientation.y = quat[2]
-    pose.orientation.z = quat[3]
-
-    #put position on Pose
-    pose.position.x = SO3_rs[0][3]
-    pose.position.y = SO3_rs[1][3]
-    pose.position.z = SO3_rs[2][3]
-
-    return pose
 
 
 def pose_to_SO3_server():
