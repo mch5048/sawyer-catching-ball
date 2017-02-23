@@ -1,0 +1,64 @@
+<launch>
+  <!-- define args -->
+  <arg name="vis" default="true" /> <!-- run rviz? -->
+  <arg name="freq" default="100" />
+  <arg name="scale" default="0.1" />
+  <arg name="damping" default="0.02" />
+  
+  <!-- define params -->
+  <param name="freq" value="$(arg freq)" />
+  <!-- <include file="$(find baxter_ee_controller)/launch/load_kinematics_urdf.launch" /> -->
+
+  
+  <!-- start the reference publisher -->
+  <node name="kdl_reference_joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" >
+	<rosparam param="source_list">["partial_joint_states"]</rosparam>
+	<param name="rate" value="$(arg freq)" />
+	<remap from="joint_states" to="kdl_reference/joint_states" />
+  </node>
+  <node name="random_ref_publisher" pkg="sawyer_catching_ball" type="random_valid_goal_generator.py"
+  		launch-prefix="xterm -fn 10x20 -geometry 120x30 -e " required="true" >
+	<remap from="joint_states" to="partial_joint_states"/>
+  </node>
+  <!-- load reference visualization stuff -->
+  <group ns="kdl_reference" >
+  	<!-- connect reference to actual -->
+  	<node name="model_connector" pkg="tf" type="static_transform_publisher"
+  		  args="0 0 0 0 0 0 base kdl_reference/base 100" />
+  	<!-- <include file="$(find baxter_ee_controller)/launch/load_kinematics_urdf.launch" /> -->
+  	<!-- robot state publisher -->
+  	<node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher">
+  	  <param name="tf_prefix" value="kdl_reference" />
+	  <remap from="robot_description" to="/robot_description" />
+  	</node>
+  </group>
+
+
+  <!-- start the IK controller and visualization -->
+  <node name="ik_joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" >
+	<rosparam param="source_list">["ik_joint_states"]</rosparam>
+	<param name="rate" value="$(arg freq)" />
+	<remap from="joint_states" to="kinematic_sim/joint_states" />
+  </node>
+  <node name="model_connector" pkg="tf" type="static_transform_publisher"
+  	args="0 0 0 0 0 0 base kinematic_sim/base 100" />
+  <node name="kinematic_sim_robot_state_publisher" pkg="robot_state_publisher" type="state_publisher">
+    <param name="tf_prefix" value="kinematic_sim" />
+    <remap from="joint_states" to="kinematic_sim/joint_states" />
+  </node>
+  <node name="ik_controller" pkg="sawyer_catching_ball" type="ik_controller_no_baxter_interface.py"
+		output="screen">
+	<remap from="joint_states" to="ik_joint_states"/>
+	<param name="freq" value="$(arg freq)" />
+	<param name="scale" value="$(arg scale)" />
+	<param name="damping" value="$(arg damping)" />
+  </node>
+
+  
+  <!-- rviz if needed -->
+  <group if="$(arg vis)">
+    <node pkg="rviz" type="rviz" respawn="false" name="rviz"
+	  args="-d $(find baxter_ee_controller)/launch/controller_animation.rviz" required="True"/>
+  </group>
+
+</launch>
