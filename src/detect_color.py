@@ -46,17 +46,47 @@ class window_with_trackbars(object):
 def filter_red(img_hsv, img_raw):
 
     v = redwin.get_vals()
-    low_vals = np.array([v[0], v[1], v[2]])
-    high_vals = np.array([v[3], v[4], v[5]])
-    red_lo = cv2.inRange(img_hsv, low_vals, high_vals)
-    red_hi = cv2.inRange(img_hsv, np.array([v[6], v[7], v[8]]), np.array([v[9], v[10], v[11]]))
+    # h: 0 - 25, s: 70 - 100 v :  
+    low_vals_red_lo = np.array([v[0], v[1], v[2]])
+    high_vals_red_lo = np.array([v[3], v[4], v[5]])
+    low_vals_red_hi = np.array([v[6], v[7], v[8]])
+    high_vals_red_hi = np.array([v[9], v[10], v[11]])
+    red_lo = cv2.inRange(img_hsv, low_vals_red_lo, high_vals_red_lo)
+    # red_hi = cv2.inRange(img_hsv, np.array([v[6], v[7], v[8]]), np.array([v[9], v[10], v[11]]))
+    red_hi = cv2.inRange(img_hsv, low_vals_red_hi, high_vals_red_hi)
     red = red_lo + red_hi
+    kernel_erode = np.ones((3,3),np.uint8)
+    kernel_dilate = np.ones((5,5),np.uint8)
+    red = cv2.erode(red, kernel_erode, iterations=2)
+    red = cv2.dilate(red, kernel_dilate, iterations=2)
+    redContours = cv2.findContours(red.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-    n = 2
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(n,n))
-    red = cv2.morphologyEx(red, cv2.MORPH_OPEN, kernel)
-    red = cv2.morphologyEx(red, cv2.MORPH_CLOSE, kernel)
+    center = None
+ 
+    # only proceed if at least one contour was found
+    if len(redContours) > 0:
+        # find the largest contour in the mask, then use
+        # it to compute the minimum enclosing circle and
+        # centroid
+        c = max(redContours, key=cv2.contourArea)
+        ((x, y), radius) = cv2.minEnclosingCircle(c)
+        M = cv2.moments(c)
+        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+ 
+        # only proceed if the radius meets a minimum size
+        if radius > 10:
+            # draw the circle and centroid on the frame,
+            # then update the list of tracked points
+            cv2.circle(img_raw, (int(x), int(y)), int(radius),
+                       (0, 255, 255), 2)
+            cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
+    # red.appendleft(center)
+    # n = 2
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(n,n))
+    # red = cv2.morphologyEx(red, cv2.MORPH_OPEN, kernel)
+    # red = cv2.morphologyEx(red, cv2.MORPH_CLOSE, kernel)
 
+    # red = cv2.bitwise_and(img_raw, img_raw)
     red = cv2.bitwise_and(img_raw, img_raw, mask = red)
     return red
     
@@ -135,14 +165,15 @@ def image_cb(ros_img, output):
     #img_canny = cv2.Canny(img_hsv, cannywin.get_vals()[0], cannywin.get_vals()[1])
     #img_canny = cv2.Canny(img_hsv, 100, 100)
     img_red = filter_red(img_hsv, cv_image)
-    tracked_red, coords = object_position(img_red)
+    # tracked_red, coords = object_position(img_red)
+    cv2.imshow('image', img_red)
 
-    cv2.imshow('image',tracked_red)
+    # cv2.imshow('image',tracked_red)
     #Show picture for 10 ms
     cv2.waitKey(10)
 
-    output.x = coords[0]
-    output.y = coords[1]
+    # output.x = coords[0]
+    # output.y = coords[1]
 
 # def get_pos(pc, output):
     
@@ -210,7 +241,11 @@ if __name__ == '__main__':
         #tune for camera at our desk in D11o
         # red_tb_defaults = [0, 255, 73, 0, 230, 255, 132, 177, 162, 179, 255, 255]     
         # red_tb_defaults = [0, 255, 73, 0, 230, 255, 53, 180, 162, 179, 255, 255] 
+
         red_tb_defaults = [0, 255, 75, 0, 230, 255, 46, 183, 169, 179, 255, 255] 
+        red_tb_defaults = [152, 0, 0, 179, 255, 255, 46, 183, 169, 179, 255, 255] 
+        red_tb_defaults = [164, 51, 55, 179, 255, 255, 0, 107, 84, 11, 255, 255] 
+        red_tb_defaults = [164, 198, 157, 179, 255, 255, 0, 195, 105, 11, 255, 255] #Best
         output = Output()
         redwin = window_with_trackbars('image_red', red_tb_defaults, red_tb_highs)
 
