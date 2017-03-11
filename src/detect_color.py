@@ -3,13 +3,18 @@ import rospy
 import cv_bridge
 import cv2
 import numpy as np
+import kinect_error_plot as kepl
 from cv_bridge import (
     CvBridge
 )
+import image_geometry  
+from geometry_msgs.msg import Point
 from sensor_msgs.msg import (
     Image ,
-    PointCloud2
+    PointCloud2,
+    CameraInfo
 )
+from std_msgs.msg import Float64
 
 class Output(object):
     def __init__(self):
@@ -88,7 +93,9 @@ def filter_red(img_hsv, img_raw):
 
     # red = cv2.bitwise_and(img_raw, img_raw)
     red = cv2.bitwise_and(img_raw, img_raw, mask = red)
-    return red
+    print "center = ", center
+    # print "list(center)", list(center)
+    return red, list(center)
     
 # def object_position(img):
 #     greyscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -122,7 +129,7 @@ def object_position(img):
         cv2.circle(img, center, 5, (0, 255, 0), -1)
         # cv2.putText(img, str(i), (center[0] - 20, center[1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-    img_height, img_width, img_depth = img.shape
+    # img_height, img_width, img_depth = img.shape
 
     try:
         # x = center[0] - img_width / 2
@@ -164,16 +171,17 @@ def image_cb(ros_img, output):
     img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)
     #img_canny = cv2.Canny(img_hsv, cannywin.get_vals()[0], cannywin.get_vals()[1])
     #img_canny = cv2.Canny(img_hsv, 100, 100)
-    img_red = filter_red(img_hsv, cv_image)
+    img_red, coords = filter_red(img_hsv, cv_image)
     # tracked_red, coords = object_position(img_red)
     cv2.imshow('image', img_red)
 
     # cv2.imshow('image',tracked_red)
     #Show picture for 10 ms
-    cv2.waitKey(10)
+    cv2.waitKey(1)
 
-    # output.x = coords[0]
-    # output.y = coords[1]
+    output.x = coords[0]
+    output.y = coords[1]
+
 
 # def get_pos(pc, output):
     
@@ -209,6 +217,9 @@ def image_cb(ros_img, output):
 #     print "Y : ", output.y, "\n"
 #     print "Z : ", output.z, "\n" 
     
+def update_model_cb(info):
+    ph_model.fromCameraInfo(info)
+
 
 def callback_depth(depth_img, output):
     # check if coordinate is not zero for both x and y
@@ -223,15 +234,45 @@ def callback_depth(depth_img, output):
     bridge = CvBridge()
     d_img = bridge.imgmsg_to_cv2(depth_img)
     d_img = cv2.resize(d_img, (0,0), fx=2, fy=2) 
-
+    depth = d_img[y][x]
+    norm_v = ph_model.projectPixelTo3dRay((x,y))
+    # print "norm_v : ", norm_v
+    # print "depth : ",depth
+    scale = depth*1.0 / norm_v[2]
+    # print "scale : ", norm_v[2]
+    print "norm_v : ",tuple([z * scale for z in norm_v])
+# tuple([z * 10 for z in img.size])
+    if not np.isnan(depth):
+        depth_pub.publish(Float64(depth))
     # print d_img.size
     # d_img = np.array(d_img, dtype=np.float32)
     # print 'shape = ', d_img.shape
-    print d_img[y][x]
+    # print "depth_img", depth
+
+# def callback_depth_test(depth_img, output):
+#     # check if coordinate is not zero for both x and y
+#     x = output.x
+#     y = output.y
+#     # access the depth map array to get the depth of the ball
+#     # depth = depth_img.data[x][y]
+
+#     # convert image to depth_image
+#     # print x,' , ' ,y
+
+#     bridge = CvBridge()
+#     d_img = bridge.imgmsg_to_cv2(depth_img)
+#     d_img = cv2.resize(d_img, (0,0), fx=2, fy=2) 
+
+#     # print d_img.size
+#     # d_img = np.array(d_img, dtype=np.float32)
+#     # print 'shape = ', d_img.shape
+#     depth = d_img[y][x]
+#     # kinect_error_plot.depth_update(depth)
+#     # depth_pub.publish(Float64(depth))
+#     print "depth_img_raw_test", depth
 
 if __name__ == '__main__':
     try:
-        #initial node
         rospy.init_node('object_detect')
         #subscribe to image topic
 
@@ -242,20 +283,28 @@ if __name__ == '__main__':
         # red_tb_defaults = [0, 255, 73, 0, 230, 255, 132, 177, 162, 179, 255, 255]     
         # red_tb_defaults = [0, 255, 73, 0, 230, 255, 53, 180, 162, 179, 255, 255] 
 
-        red_tb_defaults = [0, 255, 75, 0, 230, 255, 46, 183, 169, 179, 255, 255] 
-        red_tb_defaults = [152, 0, 0, 179, 255, 255, 46, 183, 169, 179, 255, 255] 
-        red_tb_defaults = [164, 51, 55, 179, 255, 255, 0, 107, 84, 11, 255, 255] 
+        # red_tb_defaults = [0, 255, 75, 0, 230, 255, 46, 183, 169, 179, 255, 255] 
+        # red_tb_defaults = [152, 0, 0, 179, 255, 255, 46, 183, 169, 179, 255, 255] 
+        # red_tb_defaults = [164, 51, 55, 179, 255, 255, 0, 107, 84, 11, 255, 255] 
         red_tb_defaults = [164, 198, 157, 179, 255, 255, 0, 195, 105, 11, 255, 255] #Best
+        red_tb_defaults = [164, 198, 203, 179, 255, 255, 0, 223, 127, 11, 255, 255] #Best
         output = Output()
         redwin = window_with_trackbars('image_red', red_tb_defaults, red_tb_highs)
 
+        ph_model = image_geometry.PinholeCameraModel()
+        rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, update_model_cb)
+        # kinect_error_plot
         rospy.Subscriber("/camera/rgb/image_color", Image, image_cb, output)
 
         #map x and y coord to u and v of the point cloud
         # rospy.Subscriber("/camera/depth_registered/points", PointCloud2, get_pos, output)
-
+        
+        depth_pub = rospy.Publisher("red_ball/depth", Float64, queue_size = 10)
         #access depth map
         rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, callback_depth, output)
+        
+
+
         # rospy.Subscriber("/camera/depth_registered/image_rect", Image, callback_depth, output)
 
 

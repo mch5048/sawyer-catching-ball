@@ -74,8 +74,9 @@ JOINT_VEL_LIMIT = 1.5
 CENTER_Z = 0.317
 CENTER_X = 0.7
 CENTER_Y = 0.0
-RANGE_X = 0.3
-RANGE_Y = 0.3
+RANGE_X = 0.6
+RANGE_Y = 0.6
+RANGE_Z = 0.3
 
 class IKController( object ):
     def __init__(self):
@@ -101,7 +102,7 @@ class IKController( object ):
         self.kin = KDLKinematics(self.urdf, "base", "%s_hand"%self.arm)
         self.q = np.zeros(7)
         self.q_sim = np.zeros(7)
-        self.center_pos()
+        # self.center_pos()
         self.goal = np.array(self.kin.forward(self.q))
         self.js = JointState()
         self.js.name = self.kin.get_joint_names()
@@ -123,6 +124,7 @@ class IKController( object ):
         self.js_pub = rospy.Publisher("joint_states", JointState, queue_size=3)
         self.pose_pub = rospy.Publisher("pose", PoseStamped, queue_size=3)
         self.joint_cmd_timeout_pub = rospy.Publisher("robot/limb/right/joint_command_timeout", Float64, queue_size=3)
+        # self.center_pos()
         self.joint_cmd_pub = rospy.Publisher("robot/limb/right/joint_command", JointCommand, queue_size=3)
         self.int_timer = rospy.Timer(rospy.Duration(1/float(self.freq)), self.ik_step_timercb)
         return
@@ -133,11 +135,15 @@ class IKController( object ):
         center_tf[1][3] = self.center_y
         center_tf[2][3] = self.center_z
         (qgoal, result) = mr.IKinBody(smr.Blist, smr.M, center_tf, np.zeros(7), 0.01, 0.001)
+
         # publish joint position for start position
+        rospy.loginfo("in center_pos now")
         center_joint_cmd = JointCommand()
-        center_joint_cmd.names = self.kin.get_joint_names()
+        center_joint_cmd.position = [0.379125, -0.020025390625, 0.8227529296875, -2.0955126953125, 2.172509765625, 0.7021171875, -1.5003603515625, -2.204990234375, 0.0]
+        center_joint_cmd.names = ['head_pan', 'right_j0', 'right_j1', 'right_j2', 'right_j3', 'right_j4', 'right_j5', 'right_j6', 'torso_t0']
+        # center_joint_cmd.names = self.kin.get_joint_names()
         center_joint_cmd.mode = 1
-        center_joint_cmd.position = qgoal
+        # center_joint_cmd.position = qgoal
         center_joint_cmd.header.stamp = rospy.Time.now()
         center_joint_cmd_pub = rospy.Publisher("robot/limb/right/joint_command", JointCommand, queue_size=3)
         center_joint_cmd_pub.publish(center_joint_cmd)
@@ -194,6 +200,7 @@ class IKController( object ):
             # publish joint command message
             self.joint_cmd.header.stamp = tdat.current_expected
             self.joint_cmd_pub.publish(self.joint_cmd)
+            # print self.joint_cmd
         self.js.header.stamp = tdat.current_expected
         self.js.position = self.q_sim
         self.js_pub.publish(self.js)
@@ -228,14 +235,20 @@ class IKController( object ):
         # qdot = np.dot(np.linalg.pinv(J_b), Vb)
         idim = J_b.shape[-1]
         qdot = np.dot(np.dot(np.linalg.inv(np.dot(J_b.T,J_b) + self.damping*np.eye(idim)), J_b.T), Vb)
+        # increase velocity in each joint
+        multiplier = 4
+        # print np.amax(qdot), " --to--> ", np.amax(qdot*multiplier)
+        qdot = qdot*multiplier
         # clip down velocity in each joint
         if np.amax(qdot) > self.joint_vel_limit:
             qdot = qdot/np.amax(qdot)*self.joint_vel_limit
+        names = ['right_j0', 'right_j1', 'right_j2', 'right_j3', 'right_j4', 'right_j5', 'right_j6']
+        # print "max vel joint : ", names[qdot.index(np.amax(qdot))], " : ", qdot[qdot.index(np.amax(qdot))]
+        # print "max vel joint : ", names[np.where(qdot == np.amax(qdot))[0]], " : ", qdot[np.where(qdot == np.amax(qdot))[0]]
 
-        # for i in range(len(qdot)):
-        #     if abs(qdot[i]) > JOINT_VEL_LIMIT:
-        #         self.step_scale = 0.5
-        #         qdot[i] = JOINT_VEL_LIMIT
+        if np.amax(qdot) > self.joint_vel_limit:
+            print "joint limit reach !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11"
+    
         self.q_sim += self.step_scale*qdot
         self.joint_cmd.velocity = qdot 
         return
@@ -248,6 +261,7 @@ class Safety ( object ):
         self.center_z = rospy.get_param("~center_z", CENTER_Z)
         self.range_x = rospy.get_param("~range_x", RANGE_X)
         self.range_y = rospy.get_param("~range_y", RANGE_Y)
+        self.range_z = rospy.get_param("~range_z", RANGE_Z)
         #uncomment either pose_sub or ep_sub for working with either rviz or real Sawyer
         # self.pose_sub = rospy.Subscriber("pose", PoseStamped, self.pose_cb)
         self.ep_sub = rospy.Subscriber("robot/limb/right/endpoint_state", EndpointState, self.ep_cb)
@@ -271,8 +285,10 @@ class Safety ( object ):
     def safety_check(self):
         if (self.y_pres < self.center_y - self.range_y) or \
            (self.y_pres > self.center_y + self.range_y) or \
+           (self.x_pres < self.center_x - self.range_x) or \
            (self.x_pres > self.center_x + self.range_x) or \
-           (self.x_pres < self.center_x - self.range_x) :
+           (self.z_pres < self.center_z - self.range_z) or \
+           (self.z_pres > self.center_z + self.range_z) :
             rospy.loginfo("out of threshold")
             self.reset_client(EmptyRequest())
 

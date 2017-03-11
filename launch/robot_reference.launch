@@ -54,7 +54,7 @@
 	<param name="damping" value="$(arg damping)" />
   </node>
 
-  
+
   <!-- rviz if needed -->
   <group if="$(arg vis)">
     <node pkg="rviz" type="rviz" respawn="false" name="rviz"

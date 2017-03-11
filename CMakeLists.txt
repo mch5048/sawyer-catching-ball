@@ -56,9 +56,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  FwdKin.srv
-  SO3ToPose.srv
-  PoseToSO3.srv
 )
 
 ## Generate actions in the 'action' folder
