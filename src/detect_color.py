@@ -15,6 +15,8 @@ from sensor_msgs.msg import (
     CameraInfo
 )
 from std_msgs.msg import Float64
+import tf
+
 
 class Output(object):
     def __init__(self):
@@ -60,8 +62,8 @@ def filter_red(img_hsv, img_raw):
     # red_hi = cv2.inRange(img_hsv, np.array([v[6], v[7], v[8]]), np.array([v[9], v[10], v[11]]))
     red_hi = cv2.inRange(img_hsv, low_vals_red_hi, high_vals_red_hi)
     red = red_lo + red_hi
-    kernel_erode = np.ones((3,3),np.uint8)
-    kernel_dilate = np.ones((5,5),np.uint8)
+    kernel_erode = np.ones((4,4),np.uint8)
+    kernel_dilate = np.ones((8,8),np.uint8)
     red = cv2.erode(red, kernel_erode, iterations=2)
     red = cv2.dilate(red, kernel_dilate, iterations=2)
     redContours = cv2.findContours(red.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
@@ -240,10 +242,22 @@ def callback_depth(depth_img, output):
     # print "depth : ",depth
     scale = depth*1.0 / norm_v[2]
     # print "scale : ", norm_v[2]
-    print "norm_v : ",tuple([z * scale for z in norm_v])
-# tuple([z * 10 for z in img.size])
+    # print "norm_v : ",tuple([z * scale for z in norm_v])
+
+    pos = Point()
+    pos_in_space = [z * scale for z in norm_v]
+    pos.x = pos_in_space[0]
+    pos.y = pos_in_space[1]
+    pos.z = pos_in_space[2]
+    # print "output.x : ", 3d_pos.x
+    # print "output.y : ", 3d_pos.y
+    # print "output.z : ", 3d_pos.z
+    # tuple([z * 10 for z in img.size])
     if not np.isnan(depth):
-        depth_pub.publish(Float64(depth))
+        tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
+        pos_pub.publish(pos)
+    # else :
+    #     tf_br.sendTransform((0, 0, 0), [0,0.70711,0,0.70711], rospy.Time.now(), "ball", "camera_link")
     # print d_img.size
     # d_img = np.array(d_img, dtype=np.float32)
     # print 'shape = ', d_img.shape
@@ -278,6 +292,7 @@ if __name__ == '__main__':
 
         red_tb_highs = [179, 255, 255, 179, 255, 255, 179, 255, 255, 179, 255, 255]
         #From Baxter Barista
+
         # red_tb_defaults = [0, 130, 70, 10, 230, 255, 170, 0, 0, 179, 255, 255]
         #tune for camera at our desk in D11o
         # red_tb_defaults = [0, 255, 73, 0, 230, 255, 132, 177, 162, 179, 255, 255]     
@@ -288,8 +303,11 @@ if __name__ == '__main__':
         # red_tb_defaults = [164, 51, 55, 179, 255, 255, 0, 107, 84, 11, 255, 255] 
         red_tb_defaults = [164, 198, 157, 179, 255, 255, 0, 195, 105, 11, 255, 255] #Best
         red_tb_defaults = [164, 198, 203, 179, 255, 255, 0, 223, 127, 11, 255, 255] #Best
+        green_tb_highs = [179, 255, 255, 179, 255, 255, 179, 255, 255, 179, 255, 255]
+        green_tb_defaults = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0]
+        pos = Output()
         output = Output()
-        redwin = window_with_trackbars('image_red', red_tb_defaults, red_tb_highs)
+        redwin = window_with_trackbars('image_red', green_tb_defaults, green_tb_highs)
 
         ph_model = image_geometry.PinholeCameraModel()
         rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, update_model_cb)
@@ -298,8 +316,9 @@ if __name__ == '__main__':
 
         #map x and y coord to u and v of the point cloud
         # rospy.Subscriber("/camera/depth_registered/points", PointCloud2, get_pos, output)
-        
-        depth_pub = rospy.Publisher("red_ball/depth", Float64, queue_size = 10)
+        tf_br = tf.TransformBroadcaster()
+        # depth_pub = rospy.Publisher("red_ball/depth", Float64, queue_size = 10)
+        pos_pub = rospy.Publisher("tracked_obj/position", Point, queue_size = 10)
         #access depth map
         rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, callback_depth, output)
         
