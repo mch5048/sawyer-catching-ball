@@ -27,7 +27,7 @@ PARAMS:
 # ROS IMPORTS #
 ###############
 import rospy
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, PointStamped
 import tf
 import tf.transformations as tr
 from pykdl_utils.kdl_kinematics import KDLKinematics
@@ -63,6 +63,7 @@ Z_KINECT_CALIBR = 0.628
 # ROLL_KINECT_CALIBR = -0.436332 # -25 deg
 # PITCH_KINECT_CALIBR = 1.5708 
 # YAW_KINECT_CALIBR = 0
+# ROLL_KINECT_CALIBR = 0.349066 #10 deg
 ROLL_KINECT_CALIBR = 0
 PITCH_KINECT_CALIBR = -1.5708 
 YAW_KINECT_CALIBR = 0
@@ -76,24 +77,28 @@ class IKController( object ):
         # flags and vars
         self.kinect_calibrate_flag = False
         self.running_flag = False
-        self.start_throw = False
+        # self.start_throw = False
         self.start_calc = False
         self.robot = URDF.from_parameter_server()  
         self.kin = KDLKinematics(self.robot, BASE, EE_FRAME)
         self.limb_interface = intera_interface.Limb()
-        self.pos_rec = [Point() for i in range(2)] # array 1x5 storing x,y,z in past five frames
+        self.pos_rec = [PointStamped() for i in range(2)] # array 1x5 storing x,y,z in past five frames
+        self.old_pos_rec = [PointStamped() for i in range(2)]
         self.tf_listener = tf.TransformListener()
         self.tf_bc = tf.TransformBroadcaster()
-        self.counter = 0
-        self.des_point = Point()
+        # self.counter = 0 
+        self.loop_counter = 0
+        # self.des_point = Point()
+        self.des_point = PointStamped()
         # kbhit instance
         self.kb = kbhit.KBHit()
         rospy.on_shutdown(self.kb.set_normal_term)
 
         # publishers and timers
         self.kb_timer = rospy.Timer(rospy.Duration(0.1), self.keycb)
-        self.tf_timer = rospy.Timer(rospy.Duration(0.03), self.tf_update_cb)
-        self.calc_timer = rospy.Timer(rospy.Duration(0.03), self.calc_cb)
+        self.tf_timer = rospy.Timer(rospy.Duration(0.01), self.tf_update_cb)
+        self.calc_timer = rospy.Timer(rospy.Duration(0.01), self.calc_cb)
+        self.starting_calc_timer = rospy.Timer(rospy.Duration(0.01), self.starting_flag_trigger_cb)
 
         # self.pos_sub = rospy.Subscriber("tracked_obj/position", Point, self.obj_pos_cb)
 
@@ -111,10 +116,11 @@ class IKController( object ):
             self.counter += 1
         z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])        
         # print "z_diff : ", z_diff
-        if z_diff > 0.4: #0.1 - 0.15
+        if z_diff > 0.17 and z_diff < 1: #0.1 - 0.15
             # self.counter = 20
             self.start_calc = True
             rospy.loginfo("Start calculation")
+            self.loop_counter = 0
         x_diff = abs((self.pos_rec[1])[0] - (self.pos_rec[0])[0]) 
         # if (x_diff > 0.2): #0.1 - 0.15
         #     # self.counter = 20
@@ -122,37 +128,89 @@ class IKController( object ):
         #     rospy.loginfo("Stop calculation") 
         
 
-    def calc_cb(self, tdat):
-
+    # check if the ball has been thrown yet
+    def starting_flag_trigger_cb(self,tdat):
         if self.running_flag:
-            # if not self.start_calc:
-            self.ball_move()
-            self.tf_bc.sendTransform((self.des_point.x, self.des_point.y, self.des_point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
-            if self.start_calc:              
-                # calculate s from the array
-                self.des_point = sawyer_calc.projectile_calc(self.pos_rec, Z_CENTER, 30);
-                # print self.des_point
-                self.tf_bc.sendTransform((self.des_point.x, self.des_point.y, self.des_point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
-                # send x,y,z to ik controller and move
-                rospy.loginfo("Calculating....")
-                x_diff = (self.pos_rec[1])[0] - (self.pos_rec[0])[0]   
-                # print "x_diff : ",x_diff
-                if x_diff > 0: #0.1 - 0.15
-                #     # self.counter = 20
+            if not self.start_calc:
+                # z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])   
+                z_diff = abs((self.pos_rec[1]).point.z - (self.pos_rec[0]).point.z) 
+                # print "z_diff : ", z_diff
+                if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
+                    # self.counter = 20
+                    self.start_calc = True
+                    rospy.loginfo("Start calculation")
+                    self.loop_counter = 0
+                    self.final_x_total = 0
+                    self.final_y_total = 0
+            if self.start_calc:    
+                x_diff = (self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x
+                if x_diff > 0.2: #0.1 - 0.15
+                    # print "\n\ncheck why after first trial, it starts and stops suddenly."
+                    print "pos_rec_old : ", self.pos_rec[0].point
+                    print "pos_rec_new : ", self.pos_rec[1].point
+                    print "x_diff : ", x_diff
+                    #     # self.counter = 20
+                    self.running_flag = False
                     self.start_calc = False
                     rospy.loginfo("Stop calculation")
+                    print "final point : ",self.des_point.point
+                    
+
+
+    def calc_cb(self, tdat):
+        self.tf_bc.sendTransform((self.des_point.point.x, self.des_point.point.y, self.des_point.point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
+        if self.running_flag:
+            # if not self.start_calc:
+            # self.ball_move()
+            if self.start_calc and (self.old_pos_rec != self.pos_rec):        
+                rospy.loginfo("Calculating....")      
+                # calculate x and y fromm two points in array
+                self.loop_counter += 1
+                print "\n\nloop_counter", self.loop_counter
+                # self.des_point = sawyer_calc.projectile_calc(self.pos_rec, Z_CENTER, 30);
+                self.des_point = sawyer_calc.projectile_calc(self.pos_rec, Z_CENTER);
+                print "des_point output : ", self.des_point.point
+                self.final_x_total += self.des_point.point.x
+                self.des_point.point.x = self.final_x_total / self.loop_counter
+                self.final_y_total += self.des_point.point.y
+                self.des_point.point.y = self.final_y_total / self.loop_counter
+                print "final_x_total : ", self.final_x_total
+                print "final_y_total : ", self.final_y_total
+                print "des_point.point.x avg : ", self.des_point.point.x
+                print "des_point.point.y avg : ", self.des_point.point.y
+                # print self.des_point
+                # self.tf_bc.sendTransform((self.des_point.x, self.des_point.y, self.des_point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
+                self.tf_bc.sendTransform((self.des_point.point.x, self.des_point.point.y, self.des_point.point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
+                self.old_pos_rec = self.pos_rec
+                # send x,y,z to ik controller and move
+
+                # x_diff = (self.pos_rec[1])[0] - (self.pos_rec[0])[0]   
+                # # print "x_diff : ",x_diff
+                # if x_diff > 0: #0.1 - 0.15
+                # #     # self.counter = 20
+                #     self.start_calc = False
+                #     rospy.loginfo("Stop calculation")
 
 
     def tf_update_cb(self, tdat):
         # update ball position in real time
         # Filter ball outside x = 0 - 3.0m relative to base out
         self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(15))
-        pos, quat = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
-        # choose only a ball within range
-        if pos[0] < 3:
-            self.roll_mat(self.pos_rec)
-            self.pos_rec[-1] = pos
-                
+        p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
+        pos = PointStamped()
+        pos.header.stamp = rospy.get_time()
+        pos.point.x  = p[0]
+        pos.point.y  = p[1]
+        pos.point.z  = p[2]
+        # print self.pos_rec[len(self.pos_rec) - 1].x
+        # choose only a ball within range (x < 3m., abs(y) < 2m.) and non-repeated frame 
+        if self.running_flag:
+            # print "test : ", self.pos_rec[len(self.pos_rec) - 1]
+            if pos.point.x < 3 and abs(pos.point.y) < 2 and (pos.point.x!=self.pos_rec[len(self.pos_rec) - 1].point.x) or (pos.point.y!=self.pos_rec[len(self.pos_rec) - 1].point.y):
+                self.roll_mat(self.pos_rec)
+                self.pos_rec[-1] = pos
+                # print "\npos old x:", self.pos_rec[0].point.x, " y: ", self.pos_rec[0].point.y, "z: ", self.pos_rec[0].point.z
+                # print "\npos new x:", self.pos_rec[1].point.x, " y: ", self.pos_rec[1].point.y, "z: ", self.pos_rec[1].point.z
 
     def keycb(self, tdat):
         # check if there was a key pressed, and if so, check it's value and
@@ -166,6 +224,7 @@ class IKController( object ):
             if c == 's':
                 rospy.loginfo("You pressed 's', Program starts. Sawyer is waiting for the ball to be thrown.")
                 self.running_flag = not self.running_flag
+                
             elif c == 'c':
                 rospy.loginfo("You pressed 'c', Start calibration\nrunning_flag = False")
                 self.running_flag = False

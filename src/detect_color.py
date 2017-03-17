@@ -16,6 +16,7 @@ from sensor_msgs.msg import (
 )
 from std_msgs.msg import Float64
 import tf
+import random
 
 
 class Output(object):
@@ -63,7 +64,7 @@ def filter_red(img_hsv, img_raw):
     red_hi = cv2.inRange(img_hsv, low_vals_red_hi, high_vals_red_hi)
     red = red_lo + red_hi
     kernel_erode = np.ones((4,4),np.uint8)
-    kernel_dilate = np.ones((8,8),np.uint8)
+    kernel_dilate = np.ones((7,7),np.uint8)
     red = cv2.erode(red, kernel_erode, iterations=2)
     red = cv2.dilate(red, kernel_dilate, iterations=2)
     redContours = cv2.findContours(red.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
@@ -122,7 +123,7 @@ def object_position(img):
             # continue
             coords = [0, 0, 0]
             return coords
-        # print center
+        print center
         # print center[0], center[1]
         epsilon = 0.003 * cv2.arcLength(c, True)
         c = cv2.approxPolyDP(c, epsilon, True)
@@ -222,46 +223,104 @@ def image_cb(ros_img, output):
 def update_model_cb(info):
     ph_model.fromCameraInfo(info)
 
+# def reject_outliers(data, m = 2.):
+#     d = np.abs(data - np.median(data))
+#     mdev = np.median(d)
+#     s = d/mdev if mdev else 0.
+#     return data[s<m]
 
+# def reject_outliers(data, m = 2.):
+#     d = np.abs(data - np.median(data))
+#     mdev = np.median(d)
+#     s = d/mdev if mdev else 0.
+#     return data[s<m]
+
+
+# def callback_depth(depth_img, output, last_depth):
 def callback_depth(depth_img, output):
     # check if coordinate is not zero for both x and y
-    x = output.x
+    x = output.x 
     y = output.y
-    # access the depth map array to get the depth of the ball
-    # depth = depth_img.data[x][y]
-
-    # convert image to depth_image
-    # print x,' , ' ,y
+    # print "dat", dat
+    # x = dat[0].x 
+    # y = dat[1].y
+    
 
     bridge = CvBridge()
     d_img = bridge.imgmsg_to_cv2(depth_img)
-    d_img = cv2.resize(d_img, (0,0), fx=2, fy=2) 
+    d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
+
+
+        #if not NaN or Outlier (beyond ball radius), increment depth 
+
+        
     depth = d_img[y][x]
+
+    # if np.isnan(depth):
+    #     # print "depth nan:", depth
+    #     # print "output.x : ", x, " output.y : ", y
+    #     # counter = 0
+    #     depth_rand_array = np.zeros(5)
+    #     for i in range(5):
+    #         #random x and y
+    #         not_nan = False
+    #         while not not_nan:
+    #             x_rand = x + random.randint(-15,15)
+    #             y_rand = y + random.randint(-15,15)
+    #             #get depth 
+    #             depth_rand = d_img[y_rand][x_rand]
+    #             if not np.isnan(depth_rand):
+    #                 depth_rand_array[i] = depth_rand
+    #                 not_nan = True
+    #         # take all outliers out
+    #     # depth_rand_array = reject_outliers(depth_rand_array)
+    #     depth = np.mean(depth_rand_array)
+
+    # if np.isnan(depth):
+    #     depth_rand_array = [0]*5
+    #     for i in range(5):
+    #         #random x and y
+    #         not_nan = False
+    #         while not not_nan:
+    #             x_rand = x + random.randint(-7,7)
+    #             y_rand = y + random.randint(-7,7)
+    #             #get depth 
+    #             depth_rand = d_img[y_rand][x_rand]
+    #             depth_rand_array[i] = depth_rand
+    #             if not np.isnan(depth_rand):
+    #                 depth_rand_array[i] = depth_rand
+    #                 not_nan = True
+    #         # take all outliers out
+    #     # depth_rand_array = reject_outliers(depth_rand_array)
+    #     # depth = mean(depth_rand_array)
+    #     depth = min(depth_rand_array)
+
+    if np.isnan(depth):
+            #random x and y
+        x_rand = x + random.randint(-7,7)
+        y_rand = y + random.randint(-7,7)
+        #get depth 
+        depth = d_img[y_rand][x_rand]
+       
+
     norm_v = ph_model.projectPixelTo3dRay((x,y))
-    # print "norm_v : ", norm_v
-    # print "depth : ",depth
     scale = depth*1.0 / norm_v[2]
-    # print "scale : ", norm_v[2]
-    # print "norm_v : ",tuple([z * scale for z in norm_v])
+
 
     pos = Point()
     pos_in_space = [z * scale for z in norm_v]
     pos.x = pos_in_space[0]
     pos.y = pos_in_space[1]
     pos.z = pos_in_space[2]
-    # print "output.x : ", 3d_pos.x
-    # print "output.y : ", 3d_pos.y
-    # print "output.z : ", 3d_pos.z
-    # tuple([z * 10 for z in img.size])
+    print "x ,y, z : ", pos.x, ", ", pos.y, ", ", pos.z
+
     if not np.isnan(depth):
-        tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
+        print "tf sending"
+        tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")        
         pos_pub.publish(pos)
-    # else :
-    #     tf_br.sendTransform((0, 0, 0), [0,0.70711,0,0.70711], rospy.Time.now(), "ball", "camera_link")
-    # print d_img.size
-    # d_img = np.array(d_img, dtype=np.float32)
-    # print 'shape = ', d_img.shape
-    # print "depth_img", depth
+        
+
+
 
 # def callback_depth_test(depth_img, output):
 #     # check if coordinate is not zero for both x and y
