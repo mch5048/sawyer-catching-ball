@@ -17,7 +17,19 @@ from sensor_msgs.msg import (
 from std_msgs.msg import Float64
 import tf
 import random
+import matplotlib.pyplot as plt
 
+class Plot(object):
+    def __init__(self):
+        self.x = []
+        self.y = []
+        self.depth = []
+
+    def plot(self, x, y, depth, t):
+        plt.plot(x, t, '-', label='label here')
+        plt.plot(y, t, ':', label='label here')
+        plt.plot(depth, t, '--', label='label here')
+        plt.show()
 
 class Output(object):
     def __init__(self):
@@ -96,7 +108,7 @@ def filter_red(img_hsv, img_raw):
 
     # red = cv2.bitwise_and(img_raw, img_raw)
     red = cv2.bitwise_and(img_raw, img_raw, mask = red)
-    print "center = ", center
+    # print "center = ", center
     # print "list(center)", list(center)
     return red, list(center)
     
@@ -123,7 +135,7 @@ def object_position(img):
             # continue
             coords = [0, 0, 0]
             return coords
-        print center
+        # print center
         # print center[0], center[1]
         epsilon = 0.003 * cv2.arcLength(c, True)
         c = cv2.approxPolyDP(c, epsilon, True)
@@ -227,7 +239,51 @@ def update_model_cb(info):
 #     d = np.abs(data - np.median(data))
 #     mdev = np.median(d)
 #     s = d/mdev if mdev else 0.
+#     dat_ret = []
 #     return data[s<m]
+
+def reject_outliers(data, m = 2.):
+    data = sorted(data)
+    data_raw = list(data)
+    dat_ret = []
+    med = data[int(len(data)/2)]
+    for i in range(len(data)):
+        data[i] = abs(data[i] - med)
+    data = sorted(data)
+    mdev = data[int(len(data)/2)]
+    for i in range(len(data)):
+        data[i] = data[i]/mdev if mdev else 0
+    for i in range(len(data)):
+        if data[i] < m:
+            dat_ret.append(data_raw[i])
+    return dat_ret
+
+def mean(data):
+    return  1.0*sum(data)/len(data)
+
+def within_range_filter(data, min_range, max_range):
+    dat_ret = []
+    for i in range(len(data)):
+        if data[i] < max_range and data[i] > min_range:
+            dat_ret.append(data[i])
+    return dat_ret
+
+def filter_nan(data):
+    # print "data in filternan:", data
+    data_len = len(data)
+    dat_ret = []
+    for i in range(data_len):
+        if not np.isnan(data[i]):
+        #     np.append(dat_ret, data[i])
+            dat_ret.append(data[i])
+    return dat_ret
+         
+def is_within_range(num, low, high):
+    if num < high and num > low:
+        return True
+    else:
+        return False
+
 
 # def reject_outliers(data, m = 2.):
 #     d = np.abs(data - np.median(data))
@@ -269,6 +325,7 @@ def callback_depth(depth_img, output):
     #             y_rand = y + random.randint(-15,15)
     #             #get depth 
     #             depth_rand = d_img[y_rand][x_rand]
+    #             print "Nan ? :", depth_rand
     #             if not np.isnan(depth_rand):
     #                 depth_rand_array[i] = depth_rand
     #                 not_nan = True
@@ -293,14 +350,33 @@ def callback_depth(depth_img, output):
     #         # take all outliers out
     #     # depth_rand_array = reject_outliers(depth_rand_array)
     #     # depth = mean(depth_rand_array)
-    #     depth = min(depth_rand_array)
+    #     depth = min(depth_rand_array
+    # print "depth:",depth
+    if np.isnan(depth) or not is_within_range(depth,1,3):
+        depth_rand_array = [0]*5
+        # depth_rand_array = np.zeros(1)
+        #random x and y
+        for i in range(-15,15):
+            for j in range(-15,15):
+                x_rand = x + i
+                y_rand = y + j
+                #get depth 
+                # np.append(depth_rand_array,np.array([d_img[y_rand][x_rand]]))
+                depth_rand_array.append(d_img[y_rand][x_rand])
+        # print "NaN? :", depth_rand_array
+        # print "Filter nan :", filter_nan(depth_rand_array)
+        depth_rand_array = filter_nan(depth_rand_array)
+        depth_rand_array = within_range_filter(depth_rand_array, 1, 3)
+        depth_rand_array = reject_outliers(depth_rand_array, 0.5) # reject outliers seems to return very far
+        depth = mean(depth_rand_array)
+        print "mean depth : ", depth
 
-    if np.isnan(depth):
-            #random x and y
-        x_rand = x + random.randint(-7,7)
-        y_rand = y + random.randint(-7,7)
-        #get depth 
-        depth = d_img[y_rand][x_rand]
+    # if np.isnan(depth):
+    #         #random x and y
+    #     x_rand = x + random.randint(-7,7)
+    #     y_rand = y + random.randint(-7,7)
+    #     #get depth 
+    #     depth = d_img[y_rand][x_rand]
        
 
     norm_v = ph_model.projectPixelTo3dRay((x,y))
@@ -312,13 +388,17 @@ def callback_depth(depth_img, output):
     pos.x = pos_in_space[0]
     pos.y = pos_in_space[1]
     pos.z = pos_in_space[2]
-    print "x ,y, z : ", pos.x, ", ", pos.y, ", ", pos.z
+    # print "x ,y, z : ", pos.x, ", ", pos.y, ", ", pos.z
 
     if not np.isnan(depth):
-        print "tf sending"
+        # print "tf sending"
         tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")        
         pos_pub.publish(pos)
         
+
+    # plt.plot(<X AXIS VALUES HERE>, <Y AXIS VALUES HERE>, 'line type', label='label here')
+    # plt.plot(<X AXIS VALUES HERE>, <Y AXIS VALUES HERE>, 'line type', label='label here')
+    # plt.show()
 
 
 
