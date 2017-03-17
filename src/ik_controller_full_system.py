@@ -39,6 +39,7 @@ import intera_interface
 import numpy as np
 import threading
 from urdf_parser_py.urdf import URDF
+import matplotlib.pyplot as plt
 
 #################
 # LOCAL IMPORTS #
@@ -100,7 +101,31 @@ class IKController( object ):
         self.calc_timer = rospy.Timer(rospy.Duration(0.01), self.calc_cb)
         self.starting_calc_timer = rospy.Timer(rospy.Duration(0.01), self.starting_flag_trigger_cb)
 
+        # plotting assistant
+        self.plotter = rospy.Timer(rospy.Duration(0.01), self.plotter_cb)
+        self.plot_flag = False
+        self.plot_x = []
+        self.plot_y = []
+        self.plot_z = []
+        self.plot_t = []
+
         # self.pos_sub = rospy.Subscriber("tracked_obj/position", Point, self.obj_pos_cb)
+
+    def plotter_cb(self, tdat):
+        if self.plot_flag:
+            self.running_flag = False
+            self.start_calc = False
+            plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
+            plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
+            plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
+            plt.show()
+            self.plot_x = []
+            self.plot_y = []
+            self.plot_z = []
+            self.plot_t = []
+            self.plot_flag = False
+            
+
 
     def roll_mat(self, mat):
         row_num = len(mat)
@@ -134,11 +159,20 @@ class IKController( object ):
             if not self.start_calc:
                 # z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])   
                 z_diff = abs((self.pos_rec[1]).point.z - (self.pos_rec[0]).point.z) 
+                x_diff = ((self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x)
+                # print "test : ", (self.pos_rec[1]).header.stamp
+                # dt = (self.pos_rec[1]).header.stamp - (self.pos_rec[0]).header.stamp
+                # dt1 = (self.pos_rec[1]).header.stamp 
+                # dt2 = (self.pos_rec[0]).header.stamp 
+                # dt = dt1 - dt2
+                # x_dot_diff = 1.0*x_diff/dt
                 # print "z_diff : ", z_diff
-                if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
+                # if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
+                # if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
+                if x_diff < -0.1: #0.1 - 0.15
                     # self.counter = 20
-                    self.start_calc = True
-                    rospy.loginfo("Start calculation")
+                    # self.start_calc = True
+                    # rospy.loginfo("Start calculation")
                     self.loop_counter = 0
                     self.final_x_total = 0
                     self.final_y_total = 0
@@ -197,18 +231,26 @@ class IKController( object ):
         # Filter ball outside x = 0 - 3.0m relative to base out
         self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(15))
         p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
+        # print "p : ", p[0]
         pos = PointStamped()
         pos.header.stamp = rospy.get_time()
+        # print pos.header.stamp
         pos.point.x  = p[0]
         pos.point.y  = p[1]
         pos.point.z  = p[2]
-        # print self.pos_rec[len(self.pos_rec) - 1].x
+        # print pos.point
+        # print self.pos_rec[len(self.pos_rec) - 1].point
         # choose only a ball within range (x < 3m., abs(y) < 2m.) and non-repeated frame 
         if self.running_flag:
             # print "test : ", self.pos_rec[len(self.pos_rec) - 1]
             if pos.point.x < 3 and abs(pos.point.y) < 2 and (pos.point.x!=self.pos_rec[len(self.pos_rec) - 1].point.x) or (pos.point.y!=self.pos_rec[len(self.pos_rec) - 1].point.y):
                 self.roll_mat(self.pos_rec)
                 self.pos_rec[-1] = pos
+                self.plot_x.append(pos.point.x)
+                self.plot_y.append(pos.point.y)
+                self.plot_z.append(pos.point.z)
+                self.plot_t.append(pos.header.stamp)
+                # print self.pos_rec[len(self.pos_rec) - 1].point
                 # print "\npos old x:", self.pos_rec[0].point.x, " y: ", self.pos_rec[0].point.y, "z: ", self.pos_rec[0].point.z
                 # print "\npos new x:", self.pos_rec[1].point.x, " y: ", self.pos_rec[1].point.y, "z: ", self.pos_rec[1].point.z
 
@@ -233,6 +275,9 @@ class IKController( object ):
                 rospy.loginfo("You pressed 'h', Go to home position\nrunning_flag = False")
                 self.running_flag = False
                 self.home_pos()
+            elif c == 'p':
+                rospy.loginfo("You pressed 'h', Plotting")
+                self.plot_flag = True
             else:
                 self.print_help()
             self.kb.flush()
@@ -262,6 +307,7 @@ class IKController( object ):
         's'   ~  Start the program
         'c'   ~  Calibration the kinect position
         'h'   ~  Move to home position
+        'p'   ~  Plot the trajectory of each Cartesian coordinate
         'ESC' ~  Quit
         """
         print help_string
