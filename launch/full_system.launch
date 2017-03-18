@@ -26,7 +26,8 @@ YAW_KINECT_CALIBR = 0
   <!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 -0.7 0.6 0.174533 0 0 base camera_link 100" /> -->
   <!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 -0.7 0.6 0.436332 0 0 base camera_link 100" /> -->
   <!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="-0.6 -0.6 0.628 0.349066 0 0 base camera_link 100" /> -->
-  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="-0.6 -0.6 0.628 0 0 0 base camera_link 100" />
+  <!-- <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="-0.6 -0.6 0.628 0 0 0 base camera_link 100" /> -->
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="1.524 -2.4384 0.628 1.5708 0 0 base camera_link 100" />
 
   <!-- Run the simulation -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sawyer_catching_ball)/rviz/full_system.rviz"/>
