@@ -352,7 +352,7 @@ def callback_depth(depth_img, output):
     #     # depth = mean(depth_rand_array)
     #     depth = min(depth_rand_array
     # print "depth:",depth
-    if np.isnan(depth) or not is_within_range(depth,1,3):
+    if np.isnan(depth) or is_within_range(depth,1,3):
         depth_rand_array = [0]*5
         # depth_rand_array = np.zeros(1)
         #random x and y

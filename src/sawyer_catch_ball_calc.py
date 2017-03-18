@@ -104,3 +104,67 @@ def projectile_calc(pos, z_ref):
     ret_pos.point.z = z_ref
     return ret_pos
     
+
+
+
+######################
+# POINTCLOUD FILTERS #
+######################
+
+def reject_outliers(data, m = 2.):
+#take matrix and return the one with no outliers
+    data = sorted(data)
+    data_raw = list(data)
+    dat_ret = []
+    med = data[int(len(data)/2)]
+    for i in range(len(data)):
+        data[i] = abs(data[i] - med)
+    data = sorted(data)
+    mdev = data[int(len(data)/2)]
+    for i in range(len(data)):
+        data[i] = data[i]/mdev if mdev else 0
+    for i in range(len(data)):
+        if data[i] < m:
+            dat_ret.append(data_raw[i])
+    return dat_ret
+
+
+
+def mean(data):
+# return mean of matrix. (For Python 3.6.1 and upper, use statistics libs instead)
+# check version of Python with "python -V"
+    return  1.0*sum(data)/len(data)
+
+
+
+def within_range_filter(data, min_range, max_range):
+# return matrix with data within specified range
+    dat_ret = []
+    for i in range(len(data)):
+        if data[i] < max_range and data[i] > min_range:
+            dat_ret.append(data[i])
+    return dat_ret
+
+
+
+
+def filter_nan(data):
+# filter NaN data in matrix
+    # print "data in filternan:", data
+    data_len = len(data)
+    dat_ret = []
+    for i in range(data_len):
+        if not np.isnan(data[i]):
+        #     np.append(dat_ret, data[i])
+            dat_ret.append(data[i])
+    return dat_ret
+         
+
+
+
+def is_within_range(num, low, high):
+# check if the number is within specified range or not
+    if num < high and num > low:
+        return True
+    else:
+        return False
