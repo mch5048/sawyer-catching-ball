@@ -1,15 +1,15 @@
 # Sawyer catch a ball
 
-###Goal
+### Goal
 To create algorithm and implement it on Sawyer, the manufacturing robot by Rethink Robotics, to
 catch a ball thrown at him
 
-###Hardware
+### Hardware
 Sawyer and stereo camera with RGB and depth
 
 ![alt tag](https://github.com/ctanakul/sawyer-catching-ball/blob/master/etc/pict/readme_pict_1.png)
 
-###Ball detection system
+### Ball detection system
 
 The ball detection system is comprised of image processing with color detection and 3D position
 finding from pointcloud.
@@ -36,7 +36,7 @@ In order to check the precision of the system without running real robot, the pr
 simulated as a frame in RVIZ to compare between the last position of the ball in physical and
 simulated world.
 
-###Inverse Kinematics Controller
+### Inverse Kinematics Controller
 The frequency of published pointcloud is adjusted to be at 30 Hz. The assumed number of 3D
 positions needed for future position estimating is 5 positions which takes about 15 milliseconds. Since
 the estimated time used in a throw is about 1 second, the time for the arm to move to catch the ball is
