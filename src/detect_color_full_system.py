@@ -47,9 +47,11 @@ import sawyer_catch_ball_calc as sawyer_calc
 
 
 #GLOBAL VARIABLES
-GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 179, 255, 255, 179, 255, 255,15,15]
-# GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 4, 8]
-GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 2, 8] # the setting facing the door of D110
+# GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 179, 255, 255, 179, 255, 255,15,15, 255, 255, 255, 255, 255, 255]
+# # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 4, 8]
+# GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 2, 8, 0, 0, 0, 0, 0, 0] # the setting facing the door of D110
+GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255]
+GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
 
 class Obj3DDetector(object):
 
@@ -209,8 +211,8 @@ class Obj3DDetector(object):
             # print "NaN? :", depth_rand_array
             # print "Filter nan :", filter_nan(depth_rand_array)
             depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, 0, 3)
-            depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, 0.5) # reject outliers seems to return very far
+            # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, 0, 3)
+            # depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, 0.5) # reject outliers seems to return very far
             depth = sawyer_calc.mean(depth_rand_array)
             is_nan = 0.1
             
@@ -236,20 +238,50 @@ class Obj3DDetector(object):
             #     self.plot_t.append(rospy.get_time())
 
     def specific_color_filter(self, img_hsv, img_raw):
-        v = self.trackbar.get_vals()[0:12]
+
+
+        # change black color to white color since green detection always detect black color too
+        b = self.trackbar.get_vals()[8:14]
+        black_lo = np.array([b[0], b[1], b[2]])
+        black_hi = np.array([b[3], b[4], b[5]])
+        im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
+        # im_b_to_w = cv2.bitwise_not(im_b_to_w) # the mask that cut black portion out
+
+        b_to_w_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
+        # img_blur = cv2.GaussianBlur(b_to_w_color_im, (9,9), 1)
+        img_hsv = cv2.cvtColor(b_to_w_color_im, cv2.COLOR_BGR2HSV)   
+        # cv2.imshow('b to w', img_hsv)
+        # im_white = np.zeros(img_hsv.shape, dtype=np.uint8)
+        # x_range = img_hsv.shape[0]
+        # y_range = img_hsv.shape[1]
+        # im_white.fill(255)
+        # im_white = cv2.cvtColor(im_white, cv2.COLOR_BGR2HSV)
+        # print "img_raw : ", img_raw.shape, ", " ,img_raw.size, ", ",img_raw.dtype
+        # print "im_white : ", im_white.shape, ", " ,im_white.size, ", ",im_white.dtype
+        # for i in range(x_range):
+        #     for j in range(y_range):
+        #         im_white[i][j][2] = 255
+        # b_to_w_color_im = cv2.bitwise_and(img_raw, im_white, mask = im_b_to_w)
+        # b_to_w_color_im = cv2.bitwise_not(img_raw, mask = im_b_to_w)
+
+
+        # v = self.trackbar.get_vals()[0:12]
+        v = self.trackbar.get_vals()[0:6]
         # v = GREEN_TB_DEFAULTS[0:12]
         # low and high band for detecting red color in hsv which spans at each end of h-band
         low_vals_lo = np.array([v[0], v[1], v[2]])
         high_vals_lo = np.array([v[3], v[4], v[5]])
-        low_vals_hi = np.array([v[6], v[7], v[8]])
-        high_vals_hi = np.array([v[9], v[10], v[11]])
+        # low_vals_hi = np.array([v[6], v[7], v[8]])
+        # high_vals_hi = np.array([v[9], v[10], v[11]])
         im_lo = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
-        im_hi = cv2.inRange(img_hsv, low_vals_hi, high_vals_hi)
-        im_total = im_lo + im_hi
+        # im_hi = cv2.inRange(img_hsv, low_vals_hi, high_vals_hi)
+        # im_total = im_lo + im_hi
+        im_total = im_lo
         # erode noisy details and dilate those left
         # e = self.trackbar.get_vals()[12:14]
         # e = GREEN_TB_DEFAULTS[12:14]
-        e = self.trackbar.get_vals()[12:14]
+        # e = self.trackbar.get_vals()[12:14]
+        e = self.trackbar.get_vals()[6:8]
         # kernel_erode = np.ones((4,4),np.uint8)
         # kernel_dilate = np.ones((7,7),np.uint8)
         kernel_erode = np.ones((e[0],e[0]),np.uint8)
@@ -292,12 +324,13 @@ class Obj3DDetector(object):
         #call the function from CvBridge
         bridge = CvBridge()
         cv_image = bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
-        img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
-        img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)        
+        # img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
+        # img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)         
         # img_red, coords = self.specific_color_filter(img_hsv, cv_image)
         try:
-            img_detect_color, coords = self.specific_color_filter(img_hsv, cv_image)
-            cv2.imshow('image_detect', img_detect_color)
+            # img_detect_color, coords = self.specific_color_filter(img_hsv, cv_image)
+            img_detect_color, coords = self.specific_color_filter(cv_image, cv_image)
+            # cv2.imshow('image_detect', img_detect_color)
             cv2.imshow('image_raw', cv_image)
             if self.rec_plot_flag:
                 time = rospy.get_time() - self.start_time
