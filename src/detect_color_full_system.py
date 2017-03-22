@@ -52,6 +52,9 @@ import sawyer_catch_ball_calc as sawyer_calc
 # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 2, 8, 0, 0, 0, 0, 0, 0] # the setting facing the door of D110
 GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255]
 GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
+WITHIN_RAN_MIN = 0
+WITHIN_RAN_MAX = 3.2
+OUTLIER_FILT_NUM = 0.25
 
 class Obj3DDetector(object):
 
@@ -82,19 +85,24 @@ class Obj3DDetector(object):
             return vals
         
 
-    def __init__(self, use_kb = False):
+    def __init__(self):
         rospy.loginfo("Creating Obj3DDetector class")
         
         # flags and vars
         self.start_flag = False
         self.ph_model = image_geometry.PinholeCameraModel()
         self.tracked_pixel = Point()
-        self.use_kb = use_kb
+        self.use_kb = False
         self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
+        self.within_ran_min = WITHIN_RAN_MIN
+        self.within_ran_max = WITHIN_RAN_MAX
+
+        # Get and set params
+        self.get_and_set_params()
 
         # kbhit instance
         self.kb = kbhit.KBHit()
-        if use_kb:
+        if self.use_kb:
             self.print_help()
             rospy.on_shutdown(self.kb.set_normal_term)
             self.imwritecounter = 0
@@ -125,8 +133,19 @@ class Obj3DDetector(object):
         self.pres_y = 0
         self.pres_z = 0
         self.pres_isnan = 0
+        # plot inputted pixel
         self.pres_input_pix_y = 0
         self.pres_input_pix_x = 0
+        # plot returned depth
+        self.plot_depth = []
+        self.pres_depth = 0
+        # plot returned norm vector
+        self.plot_norm_x = []
+        self.plot_norm_y = []
+        self.plot_norm_z = []
+        self.pres_norm_x = 0
+        self.pres_norm_y = 0
+        self.pres_norm_z = 0
         self.dirname = ''
 
 
@@ -148,8 +167,8 @@ class Obj3DDetector(object):
             plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
             plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
             plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
+            plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
             plt.plot(self.plot_isnan_t, self.plot_isnan, 'x', label='NaN')
-
             # plt.legend(handles=[x_patch])
             # plt.legend(handles=[y_patch])
             # plt.legend(handles=[z_patch])
@@ -159,15 +178,35 @@ class Obj3DDetector(object):
             plt.plot(self.plot_t, self.plot_input_pixel_x, 'rx', label='NaN')
             plt.plot(self.plot_t, self.plot_input_pixel_y, 'gx', label='NaN')
             plt.show()
+            plt.plot(self.plot_t, self.plot_norm_x, 'r.', label='x(depth)')
+            plt.plot(self.plot_t, self.plot_norm_y, 'g.', label='y')
+            plt.plot(self.plot_t, self.plot_norm_z, 'b.', label='z')
+            plt.show()
             plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
             plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
             plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
+            # plt.plot(self.plot_t, self.plot_depth, 'r.', label='raw_depth')
             plt.plot(self.plot_isnan_t, self.plot_isnan, 'x', label='NaN')
-            plt.savefig(os.path.join(self.dirname, 'traj_plot.jpg'))
+            filename_traj_plot = "pos3D_olierFilt-%.3f_wtRanFilt-%.2f-%.2f.jpg" % (OUTLIER_FILT_NUM, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            # plt.savefig(os.path.join(self.dirname, 'traj_plot.jpg'))
+            plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
+            plt.savefig(os.path.join(self.dirname, filename_traj_plot))
             plt.close()
+            # plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
+            # plt.savefig(os.path.join(self.dirname, 'raw_depth.jpg'))
+            # plt.close()
             plt.plot(self.plot_t, self.plot_input_pixel_x, 'rx', label='NaN')
             plt.plot(self.plot_t, self.plot_input_pixel_y, 'gx', label='NaN')
-            plt.savefig(os.path.join(self.dirname, 'tracked_pixel_plot.jpg'))
+            time_name = time.strftime("%y_%m_%d_%Hh-%Mm-%Ss") 
+            filename_pix_plot = "%s_%s.jpg" % ("tracked_pixel",time_name)
+            # plt.savefig(os.path.join(self.dirname, 'tracked_pixel_plot.jpg'))
+            plt.savefig(os.path.join(self.dirname, filename_pix_plot))
+            plt.close()
+            plt.plot(self.plot_t, self.plot_norm_x, 'r.', label='x(depth)')
+            plt.plot(self.plot_t, self.plot_norm_y, 'g.', label='y')
+            plt.plot(self.plot_t, self.plot_norm_z, 'b.', label='z')
+            filename_raw_norm = "%s_%s.jpg" % ("raw_3dRay",time_name)
+            plt.savefig(os.path.join(self.dirname, filename_raw_norm))
             # self.plot_x = []
             # self.plot_y = []
             # self.plot_z = []
@@ -180,62 +219,91 @@ class Obj3DDetector(object):
             self.pres_isnan = 0
             self.pres_input_pix_y = 0
             self.pres_input_pix_x = 0
+            self.pres_depth = 0
             del self.plot_x[:]
             del self.plot_y[:]
             del self.plot_z[:]
             del self.plot_t[:]
             del self.plot_isnan[:]
             del self.plot_isnan_t[:]
+            del self.plot_depth[:]
+
+    def get_and_set_params(self):
+        self.use_kb = rospy.get_param("kb", True)
+
+
 
     def update_model_cb(self, info):
         self.ph_model.fromCameraInfo(info)
 
 
     def depth_cb(self, depth_img):
-        x = self.tracked_pixel.x
-        y = self.tracked_pixel.y
-        bridge = CvBridge()
-        d_img = bridge.imgmsg_to_cv2(depth_img)
-        d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
-        self.pres_input_pix_y = -self.tracked_pixel.y
-        self.pres_input_pix_x = -self.tracked_pixel.x
-        depth = d_img[y][x]
-        is_nan = 0
-        if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
-            depth_rand_array = [0.]
-            for i in range(-15,15):
-                for j in range(-15,15):
-                    x_rand = x + i
-                    y_rand = y + j
-                    depth_rand_array.append(d_img[y_rand][x_rand])
-            # print "NaN? :", depth_rand_array
-            # print "Filter nan :", filter_nan(depth_rand_array)
-            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-            # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, 0, 3)
-            # depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, 0.5) # reject outliers seems to return very far
-            depth = sawyer_calc.mean(depth_rand_array)
-            is_nan = 0.1
+        try :
+            x = self.tracked_pixel.x
+            y = self.tracked_pixel.y
+            bridge = CvBridge()
+            d_img = bridge.imgmsg_to_cv2(depth_img)
+            d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
+            self.pres_input_pix_y = -self.tracked_pixel.y
+            self.pres_input_pix_x = -self.tracked_pixel.x
+            depth = d_img[y][x]
+            is_nan = 0
+            if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
+                depth_rand_array = [0.]
+                for i in range(-15,15):
+                    for j in range(-15,15):
+                        x_rand = x + i
+                        y_rand = y + j
+                        depth_rand_array.append(d_img[y_rand][x_rand])
+                        # print "NaN? :", depth_rand_array
+                        # print "Filter nan :", filter_nan(depth_rand_array)
+                depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
+                depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+                # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
+                depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+                depth = sawyer_calc.mean(depth_rand_array)
+                self.within_ran_max = depth + 0.2
+                self.within_ran_min = 0
+                is_nan = 0.1
             
-        norm_v = self.ph_model.projectPixelTo3dRay((x,y))
-        scale = depth*1.0 / norm_v[2]
-        pos = Point()
-        pos_in_space = [z * scale for z in norm_v]
-        pos.x = pos_in_space[0]
-        pos.y = pos_in_space[1]
-        pos.z = pos_in_space[2]
+            norm_v = self.ph_model.projectPixelTo3dRay((x,y))
 
-        if not np.isnan(depth):
-            # print "tf sending"
-            self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
-            self.pres_x = pos.z
-            self.pres_y = -pos.x
-            self.pres_z = -pos.y
-            self.pres_isnan = is_nan
-            # if self.rec_plot_flag:
-            #     self.plot_x.append(pos.z)
-            #     self.plot_y.append(-pos.x)
-            #     self.plot_z.append(-pos.y)
-            #     self.plot_t.append(rospy.get_time())
+            # check if the function return the same vector every time
+            old_norm = norm_v
+            for k in range(5):
+                norm_v = self.ph_model.projectPixelTo3dRay((x,y))
+                if cmp(old_norm,norm_v) != 0:
+                    print "not equal in five times"
+                old_norm = norm_v
+                # print old_norm
+
+            scale = depth*1.0 / norm_v[2]
+            pos = Point()
+            pos_in_space = [z * scale for z in norm_v]
+            pos.x = pos_in_space[0]
+            pos.y = pos_in_space[1]
+            pos.z = pos_in_space[2]
+
+            if not np.isnan(depth):
+                # print "tf sending"
+                self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
+                self.pres_x = pos.z
+                self.pres_y = -pos.x
+                self.pres_z = -pos.y
+                self.pres_isnan = is_nan
+                self.pres_depth = depth
+                # plot returned norm vector
+                plot_norm = [z for z in norm_v]
+                self.pres_norm_x = plot_norm[2]
+                self.pres_norm_y = -plot_norm[0]
+                self.pres_norm_z = -plot_norm[1]
+                # if self.rec_plot_flag:
+                #     self.plot_x.append(pos.z)
+                #     self.plot_y.append(-pos.x)
+                #     self.plot_z.append(-pos.y)
+                #     self.plot_t.append(rospy.get_time())
+        except IndexError:
+            pass
 
     def specific_color_filter(self, img_hsv, img_raw):
 
@@ -317,8 +385,8 @@ class Obj3DDetector(object):
         try:
             return tracked_color_im, list(center)
         except TypeError:
-            print("Warning : detect_color_full_system.py : line 159 : No object found!! ")
-
+            # print("Warning : detect_color_full_system.py : line 159 : No object found!! ")
+            pass
 
     def image_cb(self, ros_img):
         #call the function from CvBridge
@@ -347,12 +415,16 @@ class Obj3DDetector(object):
                 self.plot_t.append(time) 
                 self.plot_isnan.append(self.pres_isnan)
                 self.plot_isnan_t.append(time)
+                self.plot_norm_x.append(self.pres_norm_x)
+                self.plot_norm_y.append(self.pres_norm_y)
+                self.plot_norm_z.append(self.pres_norm_z)
+                self.plot_depth.append(self.pres_depth)
             cv2.waitKey(1)
             self.tracked_pixel.x = coords[0]
             self.tracked_pixel.y = coords[1] 
         except TypeError, UnboundLocalError:
-            print("Warning : detect_color_full_system.py : line 172 : No object found!! ")
-   
+            # print("Warning : detect_color_full_system.py : line 172 : No object found!! ")
+            pass
 
     def keycb(self, tdat):
         # check if there was a key pressed, and if so, check it's value and
@@ -393,8 +465,8 @@ def main():
     rospy.init_node('ball_3D_detector', log_level=rospy.INFO)
 
     try:
-        use_kb = True
-        balldetect = Obj3DDetector(use_kb)
+        # use_kb = True
+        balldetect = Obj3DDetector()
     except rospy.ROSInterruptException: pass
 
     rospy.spin()
