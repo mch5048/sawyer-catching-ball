@@ -99,6 +99,7 @@ class Obj3DDetector(object):
         self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
         self.within_ran_min = WITHIN_RAN_MIN
         self.within_ran_max = WITHIN_RAN_MAX
+        self.ball_radius = 0
 
         # Get and set params
         self.get_and_set_params()
@@ -160,6 +161,9 @@ class Obj3DDetector(object):
         self.csv_depth_filterRange_array = []
         self.pres_depth_filterOutliers_array = []
         self.csv_depth_filterOutliers_array = []
+        # for plotting d_img
+        self.d_img_plot_flag = False
+        self.rec_d_img_plot_flag = False
         #self.depth_csv = 0
         self.dirname = ''
 
@@ -254,7 +258,7 @@ class Obj3DDetector(object):
                 spamwriter.writerow(['depth\n', 'array'])
                 for s in range(len(self.plot_t)):
                     time_write = "%.4f" % (self.plot_t[s])
-                    spamwriter.writerow([time_write, ' | ', 'd_img[y][x] :', self.plot_depth[s], '\nOriginal with all ',AVG_PIX_RANGE,' pixels around center : ', self.csv_depth_original_array[s], '\nFilterNaN : ', self.csv_depth_filterNaN_array[s], '\nFilterWithinRange (', WITHIN_RAN_MIN,':',WITHIN_RAN_MAX,')',' : ', self.csv_depth_filterRange_array[s], '\nFilterOutliers at ', OUTLIER_FILT_NUM,' : ', self.csv_depth_filterOutliers_array[s]])
+                    spamwriter.writerow([time_write, ' | ', 'd_img[y][x] :', self.plot_depth[s], '\nOriginal with all ',self.ball_radius/2,' pixels around center : ', self.csv_depth_original_array[s], '\nFilterNaN : ', self.csv_depth_filterNaN_array[s], '\nFilterWithinRange (', WITHIN_RAN_MIN,':',WITHIN_RAN_MAX,')',' : ', self.csv_depth_filterRange_array[s], '\nFilterOutliers at ', OUTLIER_FILT_NUM,' : ', self.csv_depth_filterOutliers_array[s]])
 
             # self.plot_x = []
             # self.plot_y = []
@@ -297,14 +301,24 @@ class Obj3DDetector(object):
             y = self.tracked_pixel.y
             bridge = CvBridge()
             d_img = bridge.imgmsg_to_cv2(depth_img)
-            d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)          
+            d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
+            # cv2.imshow('d_img', d_img)
+            # cv2.waitKey(1)
+            # if self.rec_d_img_plot_flag:
+            #     temp_array = np.zeros((480, 640))
+            #     for colm in range(640):
+            #         for row in range(480):
+            #             temp_array[row][colm] = d_img[row][colm]
+            #     temp_array[y][x] = 0 
+            #     plt.imshow(grid, extent=(x.min(), x.max(), y.max(), y.min()), interpolation='nearest', cmap=cm.gist_rainbow)
+
             # print d_img.shape  
             # self.pres_input_pix_y = -self.tracked_pixel.y
             # self.pres_input_pix_x = -self.tracked_pixel.x
             self.pres_input_pix_y = -y
             self.pres_input_pix_x = -x
             depth = d_img[y][x]
-            print depth
+            # print depth
             # self.depth_csv = depth
             is_nan = 0
             # if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
@@ -327,8 +341,10 @@ class Obj3DDetector(object):
             depth_rand_array = []
             if np.isnan(depth):
                 is_nan = 0.1
-            for i in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
-                for j in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
+            # for i in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
+            #     for j in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
+            for i in range(-self.ball_radius,self.ball_radius):
+                for j in range(-self.ball_radius,self.ball_radius):
                     x_rand = x + i
                     y_rand = y + j
                     depth_rand_array.append(d_img[y_rand][x_rand])
@@ -372,21 +388,22 @@ class Obj3DDetector(object):
                 # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
                 if scale != 0:
                     self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
-                self.pres_x = pos.z
-                self.pres_y = -pos.x
-                self.pres_z = -pos.y
-                self.pres_isnan = is_nan
-                self.pres_depth = depth
-                # plot returned norm vector
-                plot_norm = [z for z in norm_v]
-                self.pres_norm_x = plot_norm[2]
-                self.pres_norm_y = -plot_norm[0]
-                self.pres_norm_z = -plot_norm[1]
-                # if self.rec_plot_flag:
-                #     self.plot_x.append(pos.z)
-                #     self.plot_y.append(-pos.x)
-                #     self.plot_z.append(-pos.y)
-                #     self.plot_t.append(rospy.get_time())
+                if self.rec_plot_flag:
+                    self.pres_x = pos.z
+                    self.pres_y = -pos.x
+                    self.pres_z = -pos.y
+                    self.pres_isnan = is_nan
+                    self.pres_depth = depth
+                    # plot returned norm vector
+                    plot_norm = [z for z in norm_v]
+                    self.pres_norm_x = plot_norm[2]
+                    self.pres_norm_y = -plot_norm[0]
+                    self.pres_norm_z = -plot_norm[1]
+                    # if self.rec_plot_flag:
+                    #     self.plot_x.append(pos.z)
+                    #     self.plot_y.append(-pos.x)
+                    #     self.plot_z.append(-pos.y)
+                    #     self.plot_t.append(rospy.get_time())
         except IndexError:
             pass
 
@@ -459,6 +476,7 @@ class Obj3DDetector(object):
                 # then update the list of tracked points
                 cv2.circle(img_raw, (int(x), int(y)), int(radius),(0, 255, 255), 2)
                 cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
+                self.ball_radius = int(radius)
         # red.appendleft(center)
         # n = 2
         # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(n,n))
@@ -489,9 +507,11 @@ class Obj3DDetector(object):
                 time = rospy.get_time() - self.start_time
                 filename_det = "%s_%d_%f.jpg" % ("im_detect", self.imwritecounter,time)
                 filename_raw = "%s_%d_%f.jpg" % ("im_raw", self.imwritecounter,time)
+                # filename_d_img = "%s_%d_%f.jpg" % ("im_d_img", self.imwritecounter,time)
                 self.imwritecounter += 1
                 cv2.imwrite(os.path.join(self.dirname, filename_det), img_detect_color)
                 cv2.imwrite(os.path.join(self.dirname, filename_raw), cv_image)
+                # cv2.imwrite(os.path.join(self.dirname, filename_d_img), self.d_img_write)
                 self.plot_input_pixel_x.append(self.pres_input_pix_x)
                 self.plot_input_pixel_y.append(self.pres_input_pix_y)
                 self.plot_x.append(self.pres_x)
@@ -533,17 +553,25 @@ class Obj3DDetector(object):
             elif c == 'e':
                 rospy.loginfo("You pressed 'e', Stop plotting")
                 self.plot_flag = True
+            elif c == 'a':
+                rospy.loginfo("You pressed 'a', Plotting d_img intensity plot")
+                self.rec_d_img_plot_flag = True
+            elif c == 'z':
+                rospy.loginfo("You pressed 'z', Stop plotting d_img intensity plot")
+                self.rec_d_img_plot_flag = True
             else:
                 self.print_help()
             self.kb.flush()
         return
-
 
     def print_help(self):
         help_string = \
         """
         'p'   ~  Start the plot
         'e'   ~  Stop and plot
+        ##### D_IMG plot #####
+        'a'   ~  Start the d_img plot
+        'z'   ~  Stop and plot d_img
         'ESC' ~  Quit
         """
         print help_string
