@@ -55,8 +55,9 @@ import sawyer_catch_ball_calc as sawyer_calc
 GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255]
 GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
 WITHIN_RAN_MIN = 0
-WITHIN_RAN_MAX = 3.2
+WITHIN_RAN_MAX = 3.5
 OUTLIER_FILT_NUM = 0.25
+AVG_PIX_RANGE = 30
 
 class Obj3DDetector(object):
 
@@ -150,6 +151,16 @@ class Obj3DDetector(object):
         self.pres_norm_x = 0
         self.pres_norm_y = 0
         self.pres_norm_z = 0
+        # plot returned all array printed
+        self.pres_depth_original_array = []
+        self.csv_depth_original_array = []
+        self.pres_depth_filterNaN_array = []
+        self.csv_depth_filterNaN_array = []
+        self.pres_depth_filterRange_array = []
+        self.csv_depth_filterRange_array = []
+        self.pres_depth_filterOutliers_array = []
+        self.csv_depth_filterOutliers_array = []
+        #self.depth_csv = 0
         self.dirname = ''
 
 
@@ -234,10 +245,17 @@ class Obj3DDetector(object):
                         if rgb_repeat == '1' and norm_repeat == '1':
                             both_repeat = 'True'
                     time_write = "%.4f" % (self.plot_t[s])
-                    spamwriter.writerow([time_write, self.plot_input_pixel_x[s], self.plot_input_pixel_y[s] ,' | ', self.plot_norm_x[s], self.plot_norm_y[s], self.plot_norm_z[s], ' | ', rgb_repeat, norm_repeat, ' | ', both_repeat])
+                    spamwriter.writerow([time_write, self.plot_input_pixel_x[s], self.plot_input_pixel_y[s] ,' | ', self.plot_norm_x[s], self.plot_norm_y[s], self.plot_norm_z[s], ' | ', 'depth :', self.plot_depth[s], ' | ', rgb_repeat, norm_repeat, ' | ', both_repeat])
                     rgb_repeat = '0'
                     norm_repeat = '0'
                     both_repeat = 'False'
+            with open(os.path.join(self.dirname, 'depth_array'), 'wb') as csvfile:
+                spamwriter = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
+                spamwriter.writerow(['depth\n', 'array'])
+                for s in range(len(self.plot_t)):
+                    time_write = "%.4f" % (self.plot_t[s])
+                    spamwriter.writerow([time_write, ' | ', 'd_img[y][x] :', self.plot_depth[s], '\nOriginal with all ',AVG_PIX_RANGE,' pixels around center : ', self.csv_depth_original_array[s], '\nFilterNaN : ', self.csv_depth_filterNaN_array[s], '\nFilterWithinRange (', WITHIN_RAN_MIN,':',WITHIN_RAN_MAX,')',' : ', self.csv_depth_filterRange_array[s], '\nFilterOutliers at ', OUTLIER_FILT_NUM,' : ', self.csv_depth_filterOutliers_array[s]])
+
             # self.plot_x = []
             # self.plot_y = []
             # self.plot_z = []
@@ -258,6 +276,10 @@ class Obj3DDetector(object):
             del self.plot_isnan[:]
             del self.plot_isnan_t[:]
             del self.plot_depth[:]
+            del self.csv_depth_original_array[:]
+            del self.csv_depth_filterNaN_array[:]
+            del self.csv_depth_filterRange_array[:]
+            del self.csv_depth_filterOutliers_array[:]
 
 
     def get_and_set_params(self):
@@ -282,6 +304,8 @@ class Obj3DDetector(object):
             self.pres_input_pix_y = -y
             self.pres_input_pix_x = -x
             depth = d_img[y][x]
+            print depth
+            # self.depth_csv = depth
             is_nan = 0
             # if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
             #     depth_rand_array = [0.]
@@ -300,32 +324,40 @@ class Obj3DDetector(object):
             #     self.within_ran_max = depth + 0.2
             #     self.within_ran_min = 0
             #     is_nan = 0.1
-            depth_rand_array = [0.]
+            depth_rand_array = []
             if np.isnan(depth):
                 is_nan = 0.1
-            for i in range(-15,15):
-                for j in range(-15,15):
+            for i in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
+                for j in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
                     x_rand = x + i
                     y_rand = y + j
                     depth_rand_array.append(d_img[y_rand][x_rand])
                     # print "NaN? :", depth_rand_array
                     # print "Filter nan :", filter_nan(depth_rand_array)
+            # print depth_rand_array
+            self.pres_depth_original_array = depth_rand_array
             depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
+            self.pres_depth_filterNaN_array = depth_rand_array
             depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            self.pres_depth_filterRange_array = depth_rand_array 
+            #print depth_rand_array
             # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
+            # if len(depth_rand_array) == 0:
+            #     depth_rand_array = [1]
             depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+            self.pres_depth_filterOutliers_array = depth_rand_array
+            #print depth_rand_array
             depth = sawyer_calc.mean(depth_rand_array)
-            
 
             norm_v = self.ph_model.projectPixelTo3dRay((x,y))
 
             # check if the function return the same vector every time
-            old_norm = norm_v
-            for k in range(5):
-                norm_v = self.ph_model.projectPixelTo3dRay((x,y))
-                if cmp(old_norm,norm_v) != 0:
-                    print "not equal in five times"
-                old_norm = norm_v
+            # old_norm = norm_v
+            # for k in range(5):
+            #     norm_v = self.ph_model.projectPixelTo3dRay((x,y))
+            #     if cmp(old_norm,norm_v) != 0:
+            #         print "not equal in five times"
+            #     old_norm = norm_v
                 # print old_norm
 
             scale = depth*1.0 / norm_v[2]
@@ -337,7 +369,9 @@ class Obj3DDetector(object):
 
             if not np.isnan(depth):
                 # print "tf sending"
-                self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
+                # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
+                if scale != 0:
+                    self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
                 self.pres_x = pos.z
                 self.pres_y = -pos.x
                 self.pres_z = -pos.y
@@ -470,6 +504,10 @@ class Obj3DDetector(object):
                 self.plot_norm_y.append(self.pres_norm_y)
                 self.plot_norm_z.append(self.pres_norm_z)
                 self.plot_depth.append(self.pres_depth)
+                self.csv_depth_original_array.append(self.pres_depth_original_array)
+                self.csv_depth_filterNaN_array.append(self.pres_depth_filterNaN_array)
+                self.csv_depth_filterRange_array.append(self.pres_depth_filterRange_array)
+                self.csv_depth_filterOutliers_array.append(self.pres_depth_filterOutliers_array)
             cv2.waitKey(1)
             self.tracked_pixel.x = coords[0]
             self.tracked_pixel.y = coords[1] 
