@@ -28,6 +28,7 @@ from geometry_msgs.msg import Point
 from cv_bridge import CvBridge
 import cv2
 import tf
+import rosbag
 
 ##################
 # PYTHON IMPORTS #
@@ -109,6 +110,8 @@ class Obj3DDetector(object):
             self.imwritecounter = 0
 
         # subscribers
+        # self.update_cam_info()
+        # self.try_timer = rospy.Timer(rospy.Duration(0.1), self.update_cam_info)
         self.cam_info_sub = rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, self.update_model_cb)
         self.rgb_im_sub = rospy.Subscriber("/camera/rgb/image_color", Image, self.image_cb)
         self.image_rect_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depth_cb)
@@ -152,6 +155,13 @@ class Obj3DDetector(object):
 
         # self.actual_js_sub = rospy.Subscriber("robot/joint_states", JointState, self.actual_js_cb)
         # self.js_pub = rospy.Publisher("joint_states", JointState, queue_size=3)
+    # def update_cam_info(self):
+    #     bag = rosbag.Bag('bag_camera_info.bag', 'w')
+    #     camera_infos = bag.read_messages(topics='/camera/rgb/camera_info')
+    #     # camera_info = camera_infos.next()[1]
+    #     # camera_info = camera_infos[1]
+    #     self.ph_model.fromCameraInfo(camera_info)
+
 
     def plotter_cb(self, tdat):
         if self.plot_flag:
@@ -265,11 +275,14 @@ class Obj3DDetector(object):
             y = self.tracked_pixel.y
             bridge = CvBridge()
             d_img = bridge.imgmsg_to_cv2(depth_img)
-            d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
-            self.pres_input_pix_y = -self.tracked_pixel.y
-            self.pres_input_pix_x = -self.tracked_pixel.x
+            d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)          
+            # print d_img.shape  
+            # self.pres_input_pix_y = -self.tracked_pixel.y
+            # self.pres_input_pix_x = -self.tracked_pixel.x
+            self.pres_input_pix_y = -y
+            self.pres_input_pix_x = -x
             depth = d_img[y][x]
-            is_nan = 0
+            #is_nan = 0
             # if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
             #     depth_rand_array = [0.]
             #     for i in range(-15,15):
@@ -287,24 +300,29 @@ class Obj3DDetector(object):
             #     self.within_ran_max = depth + 0.2
             #     self.within_ran_min = 0
             #     is_nan = 0.1
-            depth_rand_array = [0.]
-            if np.isnan(depth):
-                is_nan = 0.1
-            for i in range(-15,15):
-                for j in range(-15,15):
-                    x_rand = x + i
-                    y_rand = y + j
-                    depth_rand_array.append(d_img[y_rand][x_rand])
+            #depth_rand_array = [0.]
+            #if np.isnan(depth):
+            #    is_nan = 0.1
+            #for i in range(-15,15):
+            #    for j in range(-15,15):
+            #        x_rand = x + i
+            #        y_rand = y + j
+            #        depth_rand_array.append(d_img[y_rand][x_rand])
                     # print "NaN? :", depth_rand_array
                     # print "Filter nan :", filter_nan(depth_rand_array)
-            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            #depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
+            #depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
             # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
-            depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
-            depth = sawyer_calc.mean(depth_rand_array)
+            #depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+            #depth = sawyer_calc.mean(depth_rand_array)
             
+            ###### must delete
+            # depth = 1
+            is_nan = 0
+            if np.isnan(depth):
+                depth = 1
+            ######
 
-            
             norm_v = self.ph_model.projectPixelTo3dRay((x,y))
 
             # check if the function return the same vector every time
@@ -341,6 +359,8 @@ class Obj3DDetector(object):
                 #     self.plot_y.append(-pos.x)
                 #     self.plot_z.append(-pos.y)
                 #     self.plot_t.append(rospy.get_time())
+            x = 0
+            y = 0
         except IndexError:
             pass
 
