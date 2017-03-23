@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import os
 import time
+import csv
 
 
 #################
@@ -207,6 +208,26 @@ class Obj3DDetector(object):
             plt.plot(self.plot_t, self.plot_norm_z, 'b.', label='z')
             filename_raw_norm = "%s_%s.jpg" % ("raw_3dRay",time_name)
             plt.savefig(os.path.join(self.dirname, filename_raw_norm))
+            # write to csv file
+            with open(os.path.join(self.dirname, 'csv'), 'wb') as csvfile:
+                spamwriter = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
+                spamwriter.writerow(['u', 'v', 'repeated?',' | ', 'v_x', 'v_y', 'v_z'])
+                rgb_repeat = '0'
+                norm_repeat = '0'
+                both_repeat = 'False'
+                for s in range(len(self.plot_t)):
+                    for t in range(3):
+                        if s != 0 and (self.plot_input_pixel_x[s-1] == self.plot_input_pixel_x[s]) and (self.plot_input_pixel_y[s-1] == self.plot_input_pixel_y[s]):
+                            rgb_repeat = '1'
+                        if s != 0 and (self.plot_norm_x[s-1] == self.plot_norm_x[s]) and  (self.plot_norm_y[s-1] == self.plot_norm_y[s]) and  (self.plot_norm_z[s-1] == self.plot_norm_z[s]):
+                            norm_repeat = '1'
+                        if rgb_repeat == '1' and norm_repeat == '1':
+                            both_repeat = 'True'
+                    time_write = "%.4f" % (self.plot_t[s])
+                    spamwriter.writerow([time_write, self.plot_input_pixel_x[s], self.plot_input_pixel_y[s] ,' | ', self.plot_norm_x[s], self.plot_norm_y[s], self.plot_norm_z[s], ' | ', rgb_repeat, norm_repeat, ' | ', both_repeat])
+                    rgb_repeat = '0'
+                    norm_repeat = '0'
+                    both_repeat = 'False'
             # self.plot_x = []
             # self.plot_y = []
             # self.plot_z = []
@@ -228,6 +249,7 @@ class Obj3DDetector(object):
             del self.plot_isnan_t[:]
             del self.plot_depth[:]
 
+
     def get_and_set_params(self):
         self.use_kb = rospy.get_param("kb", True)
 
@@ -248,23 +270,40 @@ class Obj3DDetector(object):
             self.pres_input_pix_x = -self.tracked_pixel.x
             depth = d_img[y][x]
             is_nan = 0
-            if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
-                depth_rand_array = [0.]
-                for i in range(-15,15):
-                    for j in range(-15,15):
-                        x_rand = x + i
-                        y_rand = y + j
-                        depth_rand_array.append(d_img[y_rand][x_rand])
-                        # print "NaN? :", depth_rand_array
-                        # print "Filter nan :", filter_nan(depth_rand_array)
-                depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-                depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
-                # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
-                depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
-                depth = sawyer_calc.mean(depth_rand_array)
-                self.within_ran_max = depth + 0.2
-                self.within_ran_min = 0
+            # if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
+            #     depth_rand_array = [0.]
+            #     for i in range(-15,15):
+            #         for j in range(-15,15):
+            #             x_rand = x + i
+            #             y_rand = y + j
+            #             depth_rand_array.append(d_img[y_rand][x_rand])
+            #             # print "NaN? :", depth_rand_array
+            #             # print "Filter nan :", filter_nan(depth_rand_array)
+            #     depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
+            #     depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            #     # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
+            #     depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+            #     depth = sawyer_calc.mean(depth_rand_array)
+            #     self.within_ran_max = depth + 0.2
+            #     self.within_ran_min = 0
+            #     is_nan = 0.1
+            depth_rand_array = [0.]
+            if np.isnan(depth):
                 is_nan = 0.1
+            for i in range(-15,15):
+                for j in range(-15,15):
+                    x_rand = x + i
+                    y_rand = y + j
+                    depth_rand_array.append(d_img[y_rand][x_rand])
+                    # print "NaN? :", depth_rand_array
+                    # print "Filter nan :", filter_nan(depth_rand_array)
+            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
+            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
+            depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+            depth = sawyer_calc.mean(depth_rand_array)
+            
+
             
             norm_v = self.ph_model.projectPixelTo3dRay((x,y))
 
@@ -474,3 +513,7 @@ def main():
 
 if __name__=='__main__':
     main()
+
+
+
+
