@@ -282,7 +282,7 @@ class Obj3DDetector(object):
             self.pres_input_pix_y = -y
             self.pres_input_pix_x = -x
             depth = d_img[y][x]
-            #is_nan = 0
+            is_nan = 0
             # if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
             #     depth_rand_array = [0.]
             #     for i in range(-15,15):
@@ -300,28 +300,22 @@ class Obj3DDetector(object):
             #     self.within_ran_max = depth + 0.2
             #     self.within_ran_min = 0
             #     is_nan = 0.1
-            #depth_rand_array = [0.]
-            #if np.isnan(depth):
-            #    is_nan = 0.1
-            #for i in range(-15,15):
-            #    for j in range(-15,15):
-            #        x_rand = x + i
-            #        y_rand = y + j
-            #        depth_rand_array.append(d_img[y_rand][x_rand])
+            depth_rand_array = [0.]
+            if np.isnan(depth):
+                is_nan = 0.1
+            for i in range(-15,15):
+                for j in range(-15,15):
+                    x_rand = x + i
+                    y_rand = y + j
+                    depth_rand_array.append(d_img[y_rand][x_rand])
                     # print "NaN? :", depth_rand_array
                     # print "Filter nan :", filter_nan(depth_rand_array)
-            #depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-            #depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
+            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
             # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
-            #depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
-            #depth = sawyer_calc.mean(depth_rand_array)
+            depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+            depth = sawyer_calc.mean(depth_rand_array)
             
-            ###### must delete
-            # depth = 1
-            is_nan = 0
-            if np.isnan(depth):
-                depth = 1
-            ######
 
             norm_v = self.ph_model.projectPixelTo3dRay((x,y))
 
@@ -359,8 +353,6 @@ class Obj3DDetector(object):
                 #     self.plot_y.append(-pos.x)
                 #     self.plot_z.append(-pos.y)
                 #     self.plot_t.append(rospy.get_time())
-            x = 0
-            y = 0
         except IndexError:
             pass
 
