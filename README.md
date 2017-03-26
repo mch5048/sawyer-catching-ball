@@ -2,9 +2,7 @@
 
 ### roslaunch
 
-Due to the developing state of, 
-
-For image processing with 3D position of the ball fetching 
+For image processing with ball tracking in 3D position
 
     roslaunch sawyer_catching_ball get_position.launch 
 
@@ -21,16 +19,15 @@ To create algorithm and implement it on Sawyer, the manufacturing robot by Rethi
 catch a ball thrown at him
 
 ### Hardware
-Sawyer and stereo camera with RGB and depth
+Sawyer and stereo camera with RGB and depth camera such as [Kinect](https://developer.microsoft.com/en-us/windows/kinect) or [Asus Xtion Pro](https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE/)
 
 ![alt tag](https://github.com/ctanakul/sawyer-catching-ball/blob/master/etc/pict/readme_pict_1.png)
 
 ### Ball detection system
 
-The ball detection system is comprised of image processing with color detection and 3D position
-finding from pointcloud.
+The ball detection system comprises of image processing algorithm for the ball's color and 3D position detection from RGB image and pointcloud.
 
-The hardware facilitating in color detection and 3D position finding is [Asus Xtion Pro](https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE/) Live with RGB
+The used stero camera is [Asus Xtion Pro Live](https://www.asus.com/us/3D-Sensor/Xtion_PRO_LIVE/) with RGB
 and depth sensor. The software for connecting and processing information from the hardware is
 [openni2](http://wiki.ros.org/openni2_launch) package.
 
@@ -38,23 +35,22 @@ To get the 3D position of the ball, the image processing first detects the posit
 image with [color detection algorithm](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L238). The image is smoothened with GaussianBlur and converted into
 HSV image to extract only a portion within specified HSV range. Noise is [eroded](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L257) and the left portion
 is [dilated](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L258). The unmasked portion is further enclosed by a circle whose center pixel is outputted into
-[projectPixelTo3dRay](http://docs.ros.org/api/image_geometry/html/python/#image_geometry.PinholeCameraModel.projectPixelTo3dRay) to get the unit vector pointing to 3D point from registered pointcloud With the
-unit vector and [depth data of each pixel from depth image](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L192), the 3D position of the ball can be found.
+[projectPixelTo3dRay](http://docs.ros.org/api/image_geometry/html/python/#image_geometry.PinholeCameraModel.projectPixelTo3dRay) to get the unit vector pointing to that pixel then it is scaled up by the depth of that pixel from [depth image](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L192), therefore the 3D position of the ball can be found.
 Users can adjust the HSV range and the size of eroding and dilating kernel with [trackbars](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L57) provided
 with the algorithm.
 
 ### Projectile calculating algorithm
 The [projectile calculating algorithm](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/sawyer_catch_ball_calc.py#L29) estimates the future position of the ball from the first few
-positions in 3D at the beginning of the throw. Every two positions can be used to find initial velocity,
-launch angle in horizontal and vertical plane for estimating the future position of the ball.
+positions in 3D at the beginning of the throw. Every two positions can be used to find initial velocity and
+launch angle in horizontal and vertical plane to estimate the future position of the ball.
 
 In order to check the precision of the system without running real robot, the predicting position is
-[simulated as a frame](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/ik_controller_full_system.py#L207) in RVIZ to compare between the last position of the ball in physical and
+[simulated as a frame](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/ik_controller_full_system.py#L207) in RVIZ to compare between the final position of the ball in physical and
 simulated world.
 
 ### Inverse Kinematics Controller
 The frequency of published pointcloud is adjusted to be at 30 Hz. The assumed number of 3D
-positions needed for future position estimating is 5 positions which takes about 15 milliseconds. Since
+positions needed for future position estimation is 5 positions which will take about 15 milliseconds. Since
 the estimated time used in a throw is about 1 second, the time for the arm to move to catch the ball is
 about 85 milliseconds. For simplicity, the planar area for moving hand is specified. This area can be
 found by moving the arm and timing the total time used.
@@ -67,8 +63,8 @@ high damping constant will slow the convergence time a lot. Joint angular veloci
 published under the topic of robot/limb/right/joint\_command of type
 [intera\_core\_msgs/JointCommand](http://api.rethinkrobotics.com/baxter_core_msgs/html/msg/JointCommand.html).
 
-The area that the hand can be moved within 85 milliseconds is approximately 30 x 30 cm square on
-the right side and semicircle with 30 cm radius on the left side of the home position.
+The approximate area that the hand can be moved within 85 milliseconds is 30 x 30 cm square on
+the right side and a semicircle with 30 cm radius on the left side of the home position.
 
 ### Present development
 
@@ -85,6 +81,4 @@ wall will be filtered out. This process can return depth for every pixel specifi
 ball.
 
 To check the accuracy and analyze the data, the coordinate of pixels specified as center of the ball and
-the 3D position of the ball are [plotted through time](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L134). The result shows that the plotted stream of pixel
-coordinate is continuous, but that of the 3D position is not continuous especially when depth was
-originally returned as NaN. Therefore, the improvement is still needed.
+the 3D position of the ball are [plotted through time](https://github.com/ctanakul/sawyer-catching-ball/blob/master/src/detect_color_full_system.py#L134). 
