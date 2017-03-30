@@ -49,9 +49,6 @@ import sawyer_catch_ball_calc as sawyer_calc
 
 
 #GLOBAL VARIABLES
-# GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 179, 255, 255, 179, 255, 255,15,15, 255, 255, 255, 255, 255, 255]
-# # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 4, 8]
-# GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255, 0, 0, 0, 0, 0, 0, 2, 8, 0, 0, 0, 0, 0, 0] # the setting facing the door of D110
 GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255]
 GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
 WITHIN_RAN_MIN = 0
@@ -92,13 +89,10 @@ class Obj3DDetector(object):
         rospy.loginfo("Creating Obj3DDetector class")
         
         # flags and vars
-        self.start_flag = False
         self.ph_model = image_geometry.PinholeCameraModel()
         self.tracked_pixel = Point()
         self.use_kb = False
         self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
-        self.within_ran_min = WITHIN_RAN_MIN
-        self.within_ran_max = WITHIN_RAN_MAX
         self.ball_radius = 0
 
         # Get and set params
@@ -112,8 +106,6 @@ class Obj3DDetector(object):
             self.imwritecounter = 0
 
         # subscribers
-        # self.update_cam_info()
-        # self.try_timer = rospy.Timer(rospy.Duration(0.1), self.update_cam_info)
         self.cam_info_sub = rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, self.update_model_cb)
         self.rgb_im_sub = rospy.Subscriber("/camera/rgb/image_color", Image, self.image_cb)
         self.image_rect_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depth_cb)
@@ -164,6 +156,7 @@ class Obj3DDetector(object):
         # for plotting d_img
         self.d_img_plot_flag = False
         self.rec_d_img_plot_flag = False
+        self.bag_rgb_im = Image()
         #self.depth_csv = 0
         self.dirname = ''
 
@@ -180,26 +173,14 @@ class Obj3DDetector(object):
 
     def plotter_cb(self, tdat):
         if self.plot_flag:
+            self.bag_pix_and_img.close()
             self.rec_plot_flag = False
             self.plot_flag = False
-            # print "plot_x ", self.plot_x 
-            # print "plot_y ", self.plot_y 
-            # print "plot_z ", self.plot_z 
-            # print "plot_t ", self.plot_t 
-            # x_patch = mpatches.Patch(color='red', hatch='o', label='x(depth)')
-            # y_patch = mpatches.Patch(color='g', hatch='.', label='y')
-            # z_patch = mpatches.Patch(color='b', hatch='o', label='z')
-            # nan_patch = mpatches.Patch(color='b', hatch='x', label='NaN')
             plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
             plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
             plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
             plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
             plt.plot(self.plot_isnan_t, self.plot_isnan, 'x', label='NaN')
-            # plt.legend(handles=[x_patch])
-            # plt.legend(handles=[y_patch])
-            # plt.legend(handles=[z_patch])
-            # plt.legend(handles=[nan_patch])
-            # plt.legend(handles=[leg_x, leg_y, leg_z, leg_nan])
             plt.show()
             plt.plot(self.plot_t, self.plot_input_pixel_x, 'rx', label='NaN')
             plt.plot(self.plot_t, self.plot_input_pixel_y, 'gx', label='NaN')
@@ -211,21 +192,15 @@ class Obj3DDetector(object):
             plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
             plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
             plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
-            # plt.plot(self.plot_t, self.plot_depth, 'r.', label='raw_depth')
             plt.plot(self.plot_isnan_t, self.plot_isnan, 'x', label='NaN')
             filename_traj_plot = "pos3D_olierFilt-%.3f_wtRanFilt-%.2f-%.2f.jpg" % (OUTLIER_FILT_NUM, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
-            # plt.savefig(os.path.join(self.dirname, 'traj_plot.jpg'))
             plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
             plt.savefig(os.path.join(self.dirname, filename_traj_plot))
             plt.close()
-            # plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
-            # plt.savefig(os.path.join(self.dirname, 'raw_depth.jpg'))
-            # plt.close()
             plt.plot(self.plot_t, self.plot_input_pixel_x, 'rx', label='NaN')
             plt.plot(self.plot_t, self.plot_input_pixel_y, 'gx', label='NaN')
             time_name = time.strftime("%y_%m_%d_%Hh-%Mm-%Ss") 
             filename_pix_plot = "%s_%s.jpg" % ("tracked_pixel",time_name)
-            # plt.savefig(os.path.join(self.dirname, 'tracked_pixel_plot.jpg'))
             plt.savefig(os.path.join(self.dirname, filename_pix_plot))
             plt.close()
             plt.plot(self.plot_t, self.plot_norm_x, 'r.', label='x(depth)')
@@ -296,27 +271,25 @@ class Obj3DDetector(object):
 
 
     def depth_cb(self, depth_img):
+        x = self.tracked_pixel.x
+        y = self.tracked_pixel.y
+        bridge = CvBridge()
+        d_img = bridge.imgmsg_to_cv2(depth_img)
+        d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
         try :
-            x = self.tracked_pixel.x
-            y = self.tracked_pixel.y
-            bridge = CvBridge()
-            d_img = bridge.imgmsg_to_cv2(depth_img)
-            d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
-            # cv2.imshow('d_img', d_img)
-            # cv2.waitKey(1)
-            # if self.rec_d_img_plot_flag:
-            #     temp_array = np.zeros((480, 640))
-            #     for colm in range(640):
-            #         for row in range(480):
-            #             temp_array[row][colm] = d_img[row][colm]
-            #     temp_array[y][x] = 0 
-            #     plt.imshow(grid, extent=(x.min(), x.max(), y.max(), y.min()), interpolation='nearest', cmap=cm.gist_rainbow)
-
-            # print d_img.shape  
-            # self.pres_input_pix_y = -self.tracked_pixel.y
-            # self.pres_input_pix_x = -self.tracked_pixel.x
+            if self.rec_plot_flag:
+                self.bag_pix_and_img.write('rgb_img', self.bag_rgb_im)
+                self.bag_pix_and_img.write('depth_img',depth_img)
+                rec_coord = Point()
+                rec_coord.x = x
+                rec_coord.y = y
+                rec_coord.z = self.ball_radius
+                self.bag_pix_and_img.write('pixel_coord',rec_coord)
             self.pres_input_pix_y = -y
             self.pres_input_pix_x = -x
+            
+            
+            
             depth = d_img[y][x]
             # print depth
             # self.depth_csv = depth
@@ -495,6 +468,10 @@ class Obj3DDetector(object):
         #call the function from CvBridge
         bridge = CvBridge()
         cv_image = bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+
+
+        #if self.rec_plot_flag:
+            #self.bag_pix_and_img.write('rgb_img',ros_img)
         # img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
         # img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)         
         # img_red, coords = self.specific_color_filter(img_hsv, cv_image)
@@ -502,6 +479,11 @@ class Obj3DDetector(object):
             # img_detect_color, coords = self.specific_color_filter(img_hsv, cv_image)
             img_detect_color, coords = self.specific_color_filter(cv_image, cv_image)
             # cv2.imshow('image_detect', img_detect_color)
+            ros_img_edit = bridge.cv2_to_imgmsg(cv_image, encoding="passthrough")
+            self.bag_rgb_im = ros_img_edit
+            #if self.rec_plot_flag:
+                #self.bag_pix_and_img.write('rgb_img',ros_img_edit)
+            
             cv2.imshow('image_raw', cv_image)
             if self.rec_plot_flag:
                 time = rospy.get_time() - self.start_time
@@ -546,10 +528,13 @@ class Obj3DDetector(object):
                 print c
             if c == 'p':
                 rospy.loginfo("You pressed 'p', Plotting")
-                self.rec_plot_flag = True
                 self.dirname = time.strftime("%y_%m_%d_%Hh-%Mm-%Ss")  
                 os.mkdir(self.dirname)
+                # rosbag creating
+                filename_bag = "%s_%s.bag" % ("bag", self.dirname)
+                self.bag_pix_and_img = rosbag.Bag(os.path.join(self.dirname, filename_bag), 'w')
                 self.start_time = rospy.get_time()
+                self.rec_plot_flag = True
             elif c == 'e':
                 rospy.loginfo("You pressed 'e', Stop plotting")
                 self.plot_flag = True
