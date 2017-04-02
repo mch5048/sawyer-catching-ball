@@ -24,11 +24,12 @@ PARAMS:
 import rospy
 import image_geometry
 from sensor_msgs.msg import CameraInfo, Image
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PointStamped
 from cv_bridge import CvBridge
 import cv2
 import tf
 import rosbag
+import message_filters
 
 ##################
 # PYTHON IMPORTS #
@@ -107,13 +108,38 @@ class Obj3DDetector(object):
 
         # subscribers
         self.cam_info_sub = rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, self.update_model_cb)
-        self.rgb_im_sub = rospy.Subscriber("/camera/rgb/image_color", Image, self.image_cb)
-        self.image_rect_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depth_cb)
+        # self.rgb_im_sub = rospy.Subscriber("/camera/rgb/image_color", Image, self.image_cb)
+        # self.image_rect_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depth_cb)
+        self.msg_filt_rgb_img_sub = message_filters.Subscriber("/camera/rgb/image_color", Image)
+        self.msg_filt_depth_img_sub = message_filters.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image)
+        self.t_sync = message_filters.ApproximateTimeSynchronizer([self.msg_filt_rgb_img_sub, self.msg_filt_depth_img_sub], 30, slop = 0.1)
+        # self.tss = message_filters.TimeSynchronizer(message_filters.Subscriber("/camera/rgb/image_color", Image),
+        #                        message_filters.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image))
+        # self.tss.registerCallback(self.time_sync_img_cb)
+
+        # self.t_sync_test = message_filters.TimeSynchronizer([self.msg_filt_depth_img_sub], 30)
+        # self.t_sync_test.registerCallback(self.t_sync_test_cb)
+        self.t_sync.registerCallback(self.time_sync_img_cb)
+
+        # Test whether the TimeSynchronizer is coded correctly or not
+        self.test_1 = rospy.Publisher('test_1', PointStamped, queue_size = 10)
+        self.test_2 = rospy.Publisher('test_2', PointStamped, queue_size = 10)
+        # self.test_tsync_timer = rospy.Timer(rospy.Duration(0.1), self.test_tsync_timer)
+        self.test_1_sub = message_filters.Subscriber("/test_1", PointStamped)
+        self.test_2_sub = message_filters.Subscriber("/test_2", PointStamped)        
+        self.t_sync_test = message_filters.ApproximateTimeSynchronizer([self.test_1_sub, self.test_2_sub], 30, slop = 0)
+        # self.t_sync_test = message_filters.TimeSynchronizer([self.test_1_sub], 30)
+        # self.t_sync_test.registerCallback(self.test_tsync)
+
 
         # publishers and timers
         self.kb_timer = rospy.Timer(rospy.Duration(0.1), self.keycb)
         self.start_time = 0
         self.tf_br = tf.TransformBroadcaster()
+        # publishers for rosbag
+        self.rgb_img_tsync_pub = rospy.Publisher('time_sync_rgb_img', Image, queue_size = 10)
+        self.depth_img_tsync_pub = rospy.Publisher('time_sync_depth_img', Image, queue_size = 10)
+        self.ball_pixel_tsync_pub = rospy.Publisher('time_sync_ball_pixel_img', Point, queue_size = 10)
 
         # plotting assistant
         self.plotter = rospy.Timer(rospy.Duration(0.01), self.plotter_cb)
@@ -169,6 +195,30 @@ class Obj3DDetector(object):
     #     # camera_info = camera_infos.next()[1]
     #     # camera_info = camera_infos[1]
     #     self.ph_model.fromCameraInfo(camera_info)
+
+    def test_tsync(self, msg1, msg2):
+        print 'test proved~~~'
+
+    def test_tsync_timer(self, tdat):
+        time_a = rospy.Time.now()
+        a = PointStamped()
+        b = PointStamped()
+        # print tdat
+        print 'timer is running'
+        time_b = rospy.Time.now()
+        a.header.stamp = time_a
+        b.header.stamp = time_b
+        # print tdat.sec
+        self.test_1.publish(a)
+        self.test_2.publish(b)
+
+    def time_sync_img_cb(self, rgb_img, depth_img):
+        # rgb image process
+        print 'inside'
+        self.image_cb(rgb_img)
+        self.depth_cb(depth_img)
+        self.rgb_img_tsync_pub.publish(self.bag_rgb_im)
+        self.depth_img_tsync_pub.publish(depth_img)
 
 
     def plotter_cb(self, tdat):
@@ -277,18 +327,23 @@ class Obj3DDetector(object):
         d_img = bridge.imgmsg_to_cv2(depth_img)
         d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
         try :
+            rec_coord = Point()
+            rec_coord.x = x
+            rec_coord.y = y
+            rec_coord.z = self.ball_radius
             if self.rec_plot_flag:
                 self.bag_pix_and_img.write('rgb_img', self.bag_rgb_im)
                 self.bag_pix_and_img.write('depth_img',depth_img)
-                rec_coord = Point()
-                rec_coord.x = x
-                rec_coord.y = y
-                rec_coord.z = self.ball_radius
+                # rec_coord = Point()
+                # rec_coord.x = x
+                # rec_coord.y = y
+                # rec_coord.z = self.ball_radius
                 self.bag_pix_and_img.write('pixel_coord',rec_coord)
+
+            self.ball_pixel_tsync_pub.publish(rec_coord)
+
             self.pres_input_pix_y = -y
             self.pres_input_pix_x = -x
-            
-            
             
             depth = d_img[y][x]
             # print depth
