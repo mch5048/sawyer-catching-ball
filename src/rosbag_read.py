@@ -20,13 +20,23 @@ class RosbagRead(object):
         self.pix_y = 0
         self.radius = 0
 
-        self.pixel_sub = rospy.Subscriber("/pixel_coord", Point, self.get_pixel_cb)
-        self.d_img_sub = rospy.Subscriber("/depth_img", Image, self.depth_im_cb)
-        self.rgb_img_sub = rospy.Subscriber("/rgb_img", Image, self.rgb_im_cb)
+        # self.pixel_sub = rospy.Subscriber("/pixel_coord", Point, self.get_pixel_cb)
+        # self.d_img_sub = rospy.Subscriber("/depth_img", Image, self.depth_im_cb)
+        # self.rgb_img_sub = rospy.Subscriber("/rgb_img", Image, self.rgb_im_cb)
+
+        self.pixel_sub = rospy.Subscriber("/time_sync_ball_pixel_img", Point, self.get_pixel_cb)
+        self.d_img_sub = rospy.Subscriber("/time_sync_depth_img", Image, self.depth_im_cb)
+        self.rgb_img_sub = rospy.Subscriber("/time_sync_rgb_img", Image, self.rgb_im_cb)
+
+
+        # self.rgb_img_tsync_pub = rospy.Publisher('time_sync_rgb_img', Image, queue_size = 10)
+        # self.depth_img_tsync_pub = rospy.Publisher('time_sync_depth_img', Image, queue_size = 10)
+        # self.ball_pixel_tsync_pub = rospy.Publisher('time_sync_ball_pixel_img', Point, queue_size = 10)
+
 
     def rgb_im_cb(self, rgb_img):
-        rgb_img = self.bridge.imgmsg_to_cv2(rgb_img)
-        cv2.imshow('rgb_img', rgb_img)
+        rgb_img_show = self.bridge.imgmsg_to_cv2(rgb_img)
+        cv2.imshow('rgb_img', rgb_img_show)
         cv2.waitKey(1)
         return
 
@@ -41,12 +51,12 @@ class RosbagRead(object):
         d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
         # cv2.imshow('d_img', d_img)
         print d_img[self.pix_y][self.pix_x]
-        d_rgb_im = cv2.cvtColor(d_img,cv2.COLOR_GRAY2RGB)
+        d_rgb_im_show = cv2.cvtColor(d_img,cv2.COLOR_GRAY2RGB)
 
         # draw the circle around the ball according to x, y and radius
-        cv2.circle(d_rgb_im, (int(self.pix_x), int(self.pix_y)), int(self.radius) ,(0, 255, 255), 2)
+        cv2.circle(d_rgb_im_show, (int(self.pix_x), int(self.pix_y)), int(self.radius) ,(0, 255, 255), 2)
         # d_rgb_im[self.pix_y][self.pix_x] = [255, 0, 0] 
-        cv2.imshow('d_rgb_im', d_rgb_im)
+        cv2.imshow('d_rgb_im', d_rgb_im_show)
         cv2.waitKey(1)
         return
 
