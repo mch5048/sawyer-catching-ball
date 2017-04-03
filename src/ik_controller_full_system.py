@@ -81,7 +81,7 @@ class IKController( object ):
         self.old_pos_rec = [PointStamped() for i in range(2)]
         self.tf_listener = tf.TransformListener()
         self.tf_bc = tf.TransformBroadcaster()
-        # self.counter = 0 
+        self.counter = 0 
         self.loop_counter = 0
         # self.des_point = Point()
         self.des_point = PointStamped()
@@ -93,7 +93,9 @@ class IKController( object ):
         self.kb_timer = rospy.Timer(rospy.Duration(0.1), self.keycb)
         self.tf_timer = rospy.Timer(rospy.Duration(0.01), self.tf_update_cb)
         self.calc_timer = rospy.Timer(rospy.Duration(0.01), self.calc_cb)
-        self.starting_calc_timer = rospy.Timer(rospy.Duration(0.01), self.starting_flag_trigger_cb)
+        self.starting_calc_timer = rospy.Timer(rospy.Duration(0.05), self.starting_flag_trigger_cb)
+        self.final_x_total = 0
+        self.final_y_total = 0
 
         # plotting assistant
         self.plotter = rospy.Timer(rospy.Duration(0.01), self.plotter_cb)
@@ -126,17 +128,18 @@ class IKController( object ):
         return
 
     def ball_move(self):
-        if self.counter < 10:
-            print self.pos_rec[1]
-            self.counter += 1
-        z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])        
+        # if self.counter < 10:
+        #     print self.pos_rec[1]
+        #     self.counter += 1
+        # z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])        
+        z_diff = abs((self.pos_rec[1]).point.z - (self.pos_rec[0]).point.z)        
         # print "z_diff : ", z_diff
-        if z_diff > 0.17 and z_diff < 1: #0.1 - 0.15
+        if z_diff > 0.15 and z_diff < 1: 
             # self.counter = 20
             self.start_calc = True
             rospy.loginfo("Start calculation")
             self.loop_counter = 0
-        x_diff = abs((self.pos_rec[1])[0] - (self.pos_rec[0])[0]) 
+        # x_diff = abs((self.pos_rec[1])[0] - (self.pos_rec[0])[0]) 
         # if (x_diff > 0.2): #0.1 - 0.15
         #     # self.counter = 20
         #     self.start_calc = False
@@ -146,29 +149,30 @@ class IKController( object ):
     # check if the ball has been thrown yet
     def starting_flag_trigger_cb(self,tdat):
         if self.running_flag:
+            # check the distance in Z to know if the bal is being thrown or not
             if not self.start_calc:
                 # z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])   
                 z_diff = abs((self.pos_rec[1]).point.z - (self.pos_rec[0]).point.z) 
-                x_diff = ((self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x)
+                # x_diff = ((self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x)
                 # print "test : ", (self.pos_rec[1]).header.stamp
                 # dt = (self.pos_rec[1]).header.stamp - (self.pos_rec[0]).header.stamp
                 # dt1 = (self.pos_rec[1]).header.stamp 
                 # dt2 = (self.pos_rec[0]).header.stamp 
                 # dt = dt1 - dt2
                 # x_dot_diff = 1.0*x_diff/dt
-                # print "z_diff : ", z_diff
+                print "z_diff : ", z_diff
+                if z_diff > 0.1: #5 cm
                 # if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
-                # if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
-                if x_diff < -0.1: #0.1 - 0.15
+                # if x_diff < -0.1: #0.1 - 0.15
                     # self.counter = 20
-                    # self.start_calc = True
+                    self.start_calc = True
                     # rospy.loginfo("Start calculation")
                     self.loop_counter = 0
                     self.final_x_total = 0
                     self.final_y_total = 0
             if self.start_calc:    
                 x_diff = (self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x
-                if x_diff > 0.2: #0.1 - 0.15
+                if x_diff > 0.1: # 1 cm
                     # print "\n\ncheck why after first trial, it starts and stops suddenly."
                     print "pos_rec_old : ", self.pos_rec[0].point
                     print "pos_rec_new : ", self.pos_rec[1].point
@@ -182,16 +186,22 @@ class IKController( object ):
 
 
     def calc_cb(self, tdat):
+        # calculating the final position of the ball and sending tf between /base and /ball_final
         self.tf_bc.sendTransform((self.des_point.point.x, self.des_point.point.y, self.des_point.point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
         if self.running_flag:
             # if not self.start_calc:
             # self.ball_move()
+            # wait until start_calc flag is ran and there's no repetitive pos_rec by omparing between self.old_pos_rec and self.pos_rec
             if self.start_calc and (self.old_pos_rec != self.pos_rec):        
-                rospy.loginfo("Calculating....")      
+                rospy.loginfo("\n\nCalculating....")      
                 # calculate x and y fromm two points in array
                 self.loop_counter += 1
-                print "\n\nloop_counter", self.loop_counter
+                print "loop_counter", self.loop_counter
                 # self.des_point = sawyer_calc.projectile_calc(self.pos_rec, Z_CENTER, 30);
+                print "pos_rec[0]", self.pos_rec[0].header.stamp, " and pos_rec[1]", self.pos_rec[1].header.stamp
+                # if self.pos_rec[0].header.stamp > rospy.Duration(0) and self.pos_rec[1].header.stamp > rospy.Duration(0):
+                # if self.pos_rec[1].header.stamp > rospy.Duration(0):
+                # if self.pos_rec[1].header.stamp > 0:
                 self.des_point = sawyer_calc.projectile_calc(self.pos_rec, Z_CENTER);
                 print "des_point output : ", self.des_point.point
                 self.final_x_total += self.des_point.point.x
@@ -232,7 +242,9 @@ class IKController( object ):
         # print self.pos_rec[len(self.pos_rec) - 1].point
         # choose only a ball within range (x < 3m., abs(y) < 2m.) and non-repeated frame 
         if self.running_flag:
-            # print "test : ", self.pos_rec[len(self.pos_rec) - 1]
+            if self.counter < 20:
+                print "This must be fully filled before throwing: ", self.pos_rec
+            self.counter += 1
             if pos.point.x < 3 and abs(pos.point.y) < 2 and (pos.point.x!=self.pos_rec[len(self.pos_rec) - 1].point.x) or (pos.point.y!=self.pos_rec[len(self.pos_rec) - 1].point.y):
                 self.roll_mat(self.pos_rec)
                 self.pos_rec[-1] = pos

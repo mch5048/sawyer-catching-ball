@@ -10,7 +10,7 @@
   <!-- <node pkg="dynamic_reconfigure" type="dynparam" name="dynparam" args="set /camera/driver image_mode 2" /> -->
   <!-- <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/> -->
   <node name="image_view" pkg="image_view" type="image_view" args="image:=/camera/rgb/image_color"/>
-  <node name="red_ball_detector" pkg="sawyer_catching_ball" type="detect_color_full_system.py"/>
+  <!-- <node name="red_ball_detector" pkg="sawyer_catching_ball" type="detect_color_full_system.py"/> -->
   <!-- <node name="kinect_error_plot" pkg="sawyer_catching_ball" type="kinect_error_plot.py" -->
   <!-- 		launch-prefix="xterm -fn 10x20 -geometry 120x30 -e " required="true" > -->
   <!-- </node> -->

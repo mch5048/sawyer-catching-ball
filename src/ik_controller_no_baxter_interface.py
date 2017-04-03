@@ -44,6 +44,7 @@ import tf.transformations as tr
 import tf
 from urdf_parser_py.urdf import URDF
 from pykdl_utils.kdl_kinematics import KDLKinematics
+import intera_interface 
 
 
 ##################
@@ -82,6 +83,7 @@ class IKController( object ):
     def __init__(self):
         rospy.loginfo("Creating IK Controller class")
 
+
         # setup flags and useful vars:
         self.running_flag = False
         self.freq = rospy.get_param("~freq", FREQ)
@@ -102,7 +104,8 @@ class IKController( object ):
         self.kin = KDLKinematics(self.urdf, "base", "%s_hand"%self.arm)
         self.q = np.zeros(7)
         self.q_sim = np.zeros(7)
-        # self.center_pos()
+        self.limb_interface = intera_interface.Limb()
+        self.center_pos()
         self.goal = np.array(self.kin.forward(self.q))
         self.js = JointState()
         self.js.name = self.kin.get_joint_names()
@@ -112,11 +115,11 @@ class IKController( object ):
         self.joint_cmd.names = self.kin.get_joint_names()
         self.joint_cmd.mode = 2
 
+
         # create all services:
         self.toggle_server = rospy.Service("toggle_controller", SetBool, self.toggle_handler)
         self.reset_server = rospy.Service("reset", Empty, self.reset_handler)
         self.random_server = rospy.Service("random", Empty, self.random_handler)
-
 
         # create all subscribers, timers, and publishers:
         self.ref_sub = rospy.Subscriber("ref_pose", PoseStamped, self.refcb)
@@ -124,29 +127,31 @@ class IKController( object ):
         self.js_pub = rospy.Publisher("joint_states", JointState, queue_size=3)
         self.pose_pub = rospy.Publisher("pose", PoseStamped, queue_size=3)
         self.joint_cmd_timeout_pub = rospy.Publisher("robot/limb/right/joint_command_timeout", Float64, queue_size=3)
-        # self.center_pos()
+        self.center_pos()
         self.joint_cmd_pub = rospy.Publisher("robot/limb/right/joint_command", JointCommand, queue_size=3)
         self.int_timer = rospy.Timer(rospy.Duration(1/float(self.freq)), self.ik_step_timercb)
         return
         
     def center_pos(self):
-        center_tf = tr.euler_matrix(0, np.pi/2, 0)
-        center_tf[0][3] = self.center_x + 0.2
-        center_tf[1][3] = self.center_y
-        center_tf[2][3] = self.center_z
-        (qgoal, result) = mr.IKinBody(smr.Blist, smr.M, center_tf, np.zeros(7), 0.01, 0.001)
+        # center_tf = tr.euler_matrix(0, np.pi/2, 0)
+        # center_tf[0][3] = self.center_x + 0.2
+        # center_tf[1][3] = self.center_y
+        # center_tf[2][3] = self.center_z
+        # (qgoal, result) = mr.IKinBody(smr.Blist, smr.M, center_tf, np.zeros(7), 0.01, 0.001)
 
         # publish joint position for start position
         rospy.loginfo("in center_pos now")
-        center_joint_cmd = JointCommand()
-        center_joint_cmd.position = [0.379125, -0.020025390625, 0.8227529296875, -2.0955126953125, 2.172509765625, 0.7021171875, -1.5003603515625, -2.204990234375, 0.0]
-        center_joint_cmd.names = ['head_pan', 'right_j0', 'right_j1', 'right_j2', 'right_j3', 'right_j4', 'right_j5', 'right_j6', 'torso_t0']
+        # center_joint_cmd = JointCommand()
+        # center_joint_cmd.position = [0.379125, -0.020025390625, 0.8227529296875, -2.0955126953125, 2.172509765625, 0.7021171875, -1.5003603515625, -2.204990234375, 0.0]
+        # center_joint_cmd.names = ['head_pan', 'right_j0', 'right_j1', 'right_j2', 'right_j3', 'right_j4', 'right_j5', 'right_j6', 'torso_t0']
+        self.limb_interface.move_to_joint_positions({'head_pan':0.379125, 'right_j0':-0.020025390625 , 'right_j1':0.8227529296875, 'right_j2':-2.0955126953125, 'right_j3':2.172509765625, 'right_j4':0.7021171875, 'right_j5' : -1.5003603515625, 'right_j6' : -2.204990234375})
+        rospy.loginfo("finish set joint")
         # center_joint_cmd.names = self.kin.get_joint_names()
-        center_joint_cmd.mode = 1
+        # center_joint_cmd.mode = 1
         # center_joint_cmd.position = qgoal
-        center_joint_cmd.header.stamp = rospy.Time.now()
-        center_joint_cmd_pub = rospy.Publisher("robot/limb/right/joint_command", JointCommand, queue_size=3)
-        center_joint_cmd_pub.publish(center_joint_cmd)
+        # center_joint_cmd.header.stamp = rospy.Time.now()
+        # center_joint_cmd_pub = rospy.Publisher("robot/limb/right/joint_command", JointCommand, queue_size=3)
+        # center_joint_cmd_pub.publish(center_joint_cmd)
         return 
 
 

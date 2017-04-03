@@ -29,7 +29,9 @@ M = np.array([[0., 0., 1., 1.0155],
 def projectile_calc(pos, z_ref):
     
     # dt =1.0/hz
-    dt = pos[1].header.stamp - pos[0].header.stamp
+    # print pos[0]
+    # print pos[1]
+    dt = (pos[1].header.stamp) - (pos[0].header.stamp)
     array_size = len(pos)
     max_s_list = [Point() for i in range(array_size - 1)]
     # ret_pos = Point()
@@ -106,43 +108,62 @@ def projectile_calc(pos, z_ref):
     
 
 
+####################
+# AVERAGING RADIUS #
+####################
+
+# def ball_pointcloud_filter(data, radius) : 
+# # return a matrix with those valuse close to the ball
+
 
 ######################
 # POINTCLOUD FILTERS #
 ######################
 
 def reject_outliers(data, m = 2.):
-#take matrix and return the one with no outliers
-    data = sorted(data)
-    data_raw = list(data)
-    dat_ret = []
-    med = data[int(len(data)/2)]
-    for i in range(len(data)):
-        data[i] = abs(data[i] - med)
-    data = sorted(data)
-    mdev = data[int(len(data)/2)]
-    for i in range(len(data)):
-        data[i] = data[i]/mdev if mdev else 0
-    for i in range(len(data)):
-        if data[i] < m:
-            dat_ret.append(data_raw[i])
-    return dat_ret
+# take matrix and return the one with no outliers
+    # print 'in reject outlier'
+    if data != []:
+        data = sorted(data)
+        data_raw = list(data)
+        dat_ret = []
+        med = data[int(len(data)/2)]
+        for i in range(len(data)):
+            data[i] = abs(data[i] - med)
+        data = sorted(data)
+        mdev = data[int(len(data)/2)]
+        for i in range(len(data)):
+            data[i] = data[i]/mdev if mdev else 0
+        for i in range(len(data)):
+            if data[i] < m:
+                dat_ret.append(data_raw[i])
+        return dat_ret
+    else :
+        print "Error in mean function : Input is null set, [] will be returned"
+        return []
 
 
 
 def mean(data):
 # return mean of matrix. (For Python 3.6.1 and upper, use statistics libs instead)
 # check version of Python with "python -V"
-    return  1.0*sum(data)/len(data)
+    if data != []:
+        return  1.0*sum(data)/len(data)
+    else:
+        print "Error in mean function : Input is null set, 0 will be returned"
+        return 0
+
 
 
 
 def within_range_filter(data, min_range, max_range):
 # return matrix with data within specified range
     dat_ret = []
+    # print 'before\n', data
     for i in range(len(data)):
-        if data[i] < max_range and data[i] > min_range:
+        if data[i] < max_range and data[i] >= min_range:
             dat_ret.append(data[i])
+    # print 'after\n', dat_ret
     return dat_ret
 
 
