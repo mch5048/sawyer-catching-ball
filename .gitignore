@@ -1,0 +1,12 @@
+*~
+*#
+etc/
+*.pyc
+*.bag
+*.jpg
+*.png
+*.ogv
+*.mp4
+*.avi
+*.odt
+
