@@ -524,7 +524,6 @@ class Obj3DDetector(object):
         bridge = CvBridge()
         cv_image = bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
 
-
         #if self.rec_plot_flag:
             #self.bag_pix_and_img.write('rgb_img',ros_img)
         # img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
@@ -534,12 +533,14 @@ class Obj3DDetector(object):
             # img_detect_color, coords = self.specific_color_filter(img_hsv, cv_image)
             img_detect_color, coords = self.specific_color_filter(cv_image, cv_image)
             # cv2.imshow('image_detect', img_detect_color)
-            ros_img_edit = bridge.cv2_to_imgmsg(cv_image, encoding="passthrough")
-            self.bag_rgb_im = ros_img_edit
+            # ros_img_edit = bridge.cv2_to_imgmsg(img_detect_color, encoding="bgr8")
+            # self.bag_rgb_im = cv_image
+            ros_img_rgb = bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+            self.bag_rgb_im = ros_img_rgb
             #if self.rec_plot_flag:
                 #self.bag_pix_and_img.write('rgb_img',ros_img_edit)
-            
             cv2.imshow('image_raw', cv_image)
+            print "type of image", cv_image.dtype
             if self.rec_plot_flag:
                 time = rospy.get_time() - self.start_time
                 filename_det = "%s_%d_%f.jpg" % ("im_detect", self.imwritecounter,time)
