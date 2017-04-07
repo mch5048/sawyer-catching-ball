@@ -52,9 +52,13 @@ SOURCE_FRAME = "ball"
 # X_KINECT_CALIBR = 0.
 # Y_KINECT_CALIBR = -0.7
 # Z_KINECT_CALIBR = 0.6
-X_KINECT_CALIBR = -0.60
-Y_KINECT_CALIBR = -0.60
-Z_KINECT_CALIBR = 0.628
+# X_KINECT_CALIBR = -0.60
+# Y_KINECT_CALIBR = -0.60
+# Z_KINECT_CALIBR = 0.628
+X_KINECT_CALIBR = -0.31394
+X_KINECT_CALIBR_2 = X_KINECT_CALIBR + 0.15
+Y_KINECT_CALIBR = -0.35392
+Z_KINECT_CALIBR = 0.65747489
 # ROLL_KINECT_CALIBR = -0.436332 # -25 deg
 # PITCH_KINECT_CALIBR = 1.5708 
 # YAW_KINECT_CALIBR = 0
@@ -77,8 +81,9 @@ class IKController( object ):
         self.robot = URDF.from_parameter_server()  
         self.kin = KDLKinematics(self.robot, BASE, EE_FRAME)
         self.limb_interface = intera_interface.Limb()
-        self.pos_rec = [PointStamped() for i in range(2)] # array 1x5 storing x,y,z in past five frames
+        self.pos_rec = [PointStamped() for i in range(2)] # array 1x2 with each cell storing a PointStamped with cartesian position of the ball in the past two frames
         self.old_pos_rec = [PointStamped() for i in range(2)]
+        self.last_tf_time = 0
         self.tf_listener = tf.TransformListener()
         self.tf_bc = tf.TransformBroadcaster()
         self.counter = 0 
@@ -98,29 +103,30 @@ class IKController( object ):
         self.final_y_total = 0
 
         # plotting assistant
-        self.plotter = rospy.Timer(rospy.Duration(0.01), self.plotter_cb)
-        self.plot_flag = False
-        self.plot_x = []
-        self.plot_y = []
-        self.plot_z = []
-        self.plot_t = []
+        # self.plotter = rospy.Timer(rospy.Duration(0.01), self.plotter_cb)
+        # self.plot_flag = False
+        # self.plot_x = []
+        # self.plot_y = []
+        # self.plot_z = []
+        # self.plot_t = []
 
         # self.pos_sub = rospy.Subscriber("tracked_obj/position", Point, self.obj_pos_cb)
 
-    def plotter_cb(self, tdat):
-        if self.plot_flag:
-            self.running_flag = False
-            self.start_calc = False
-            plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
-            plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
-            plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
-            plt.show()
-            self.plot_x = []
-            self.plot_y = []
-            self.plot_z = []
-            self.plot_t = []
-            self.plot_flag = False
+    # def plotter_cb(self, tdat):
+    #     if self.plot_flag:
+    #         self.running_flag = False
+    #         self.start_calc = False
+    #         plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
+    #         plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
+    #         plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
+    #         plt.show()
+    #         self.plot_x = []
+    #         self.plot_y = []
+    #         self.plot_z = []
+    #         self.plot_t = []
+    #         self.plot_flag = False
             
+
     def roll_mat(self, mat):
         row_num = len(mat)
         for i in range(0,row_num - 1):
@@ -215,7 +221,7 @@ class IKController( object ):
                 # print self.des_point
                 # self.tf_bc.sendTransform((self.des_point.x, self.des_point.y, self.des_point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
                 self.tf_bc.sendTransform((self.des_point.point.x, self.des_point.point.y, self.des_point.point.z), [0,0,0,1], rospy.Time.now(), "ball_final", "base")
-                self.old_pos_rec = self.pos_rec
+                # self.old_pos_rec = self.pos_rec
                 # send x,y,z to ik controller and move
 
                 # x_diff = (self.pos_rec[1])[0] - (self.pos_rec[0])[0]   
@@ -231,16 +237,19 @@ class IKController( object ):
         # Filter ball outside x = 0 - 3.0m relative to base out
         self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(20))
         p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
-        # print "p : ", p[0]
         pos = PointStamped()
         pos.header.stamp = rospy.get_time()
-        # print pos.header.stamp
         pos.point.x  = p[0]
         pos.point.y  = p[1]
         pos.point.z  = p[2]
-        # print pos.point
-        # print self.pos_rec[len(self.pos_rec) - 1].point
-        # choose only a ball within range (x < 3m., abs(y) < 2m.) and non-repeated frame 
+        # filter repeated received tf out
+        if (self.pos_rec[1].header.stamp != pos.header.stamp) and (self.pos_rec[1].point.x != pos.point.x):
+            self.roll_mat(self.pos_rec)
+            self.pos_rec[1] = pos
+        # choose only a non-repeated pos_rec by comparing between the timestamped of the present and past pos_rec
+        if (self.last_tf_time != self.pos_rec[0].header.stamp):
+            self.last_tf_time = self.pos_rec[0].header.stamp
+
         if self.running_flag:
             if self.counter < 20:
                 print "This must be fully filled before throwing: ", self.pos_rec
@@ -248,10 +257,10 @@ class IKController( object ):
             if pos.point.x < 3 and abs(pos.point.y) < 2 and (pos.point.x!=self.pos_rec[len(self.pos_rec) - 1].point.x) or (pos.point.y!=self.pos_rec[len(self.pos_rec) - 1].point.y):
                 self.roll_mat(self.pos_rec)
                 self.pos_rec[-1] = pos
-                self.plot_x.append(pos.point.x)
-                self.plot_y.append(pos.point.y)
-                self.plot_z.append(pos.point.z)
-                self.plot_t.append(pos.header.stamp)
+                # self.plot_x.append(pos.point.x)
+                # self.plot_y.append(pos.point.y)
+                # self.plot_z.append(pos.point.z)
+                # self.plot_t.append(pos.header.stamp)
                 # print self.pos_rec[len(self.pos_rec) - 1].point
                 # print "\npos old x:", self.pos_rec[0].point.x, " y: ", self.pos_rec[0].point.y, "z: ", self.pos_rec[0].point.z
                 # print "\npos new x:", self.pos_rec[1].point.x, " y: ", self.pos_rec[1].point.y, "z: ", self.pos_rec[1].point.z
@@ -286,8 +295,15 @@ class IKController( object ):
         return
 
     def kinect_pos_calib(self):
-        # input x,y,z and x,y,z
-        p = [X_KINECT_CALIBR, Y_KINECT_CALIBR, Z_KINECT_CALIBR]
+        # 
+        if not self.kinect_calibrate_flag:
+            # input x,y,z and x,y,z
+            p = [X_KINECT_CALIBR, Y_KINECT_CALIBR, Z_KINECT_CALIBR]
+            self.kinect_calibrate_flag = True
+            rospy.loginfo("Press C again for calibrate the height of the camera")
+        else:
+            p = [X_KINECT_CALIBR_2, Y_KINECT_CALIBR, Z_KINECT_CALIBR]            
+            self.kinect_calibrate_flag = False
         G = tr.euler_matrix(ROLL_KINECT_CALIBR, PITCH_KINECT_CALIBR, YAW_KINECT_CALIBR)
         for i in range(3):
             G[i][3] = p[i]
