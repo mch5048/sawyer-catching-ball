@@ -110,7 +110,7 @@ class Obj3DDetector(object):
         self.cam_info_sub = rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, self.update_model_cb)
         self.msg_filt_rgb_img_sub = message_filters.Subscriber("/camera/rgb/image_color", Image)
         self.msg_filt_depth_img_sub = message_filters.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image)
-        self.t_sync = message_filters.ApproximateTimeSynchronizer([self.msg_filt_rgb_img_sub, self.msg_filt_depth_img_sub], 30, slop = 0.1)
+        self.t_sync = message_filters.ApproximateTimeSynchronizer([self.msg_filt_rgb_img_sub, self.msg_filt_depth_img_sub], 1, slop = 0.01)
         self.t_sync.registerCallback(self.time_sync_img_cb)
 
         # publishers and timers
@@ -165,8 +165,8 @@ class Obj3DDetector(object):
                     y_rand = y + j
                     depth_rand_array.append(d_img[y_rand][x_rand])
             depth_rand_array = sawyer_calc.filter_nan(depth_rand_array) ## 0.002-0.0047sec
-        # time_st = rospy.get_time()
-        # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            # time_st = rospy.get_time()
+            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
             ##0.006-0.01
             depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
             # time_try = rospy.get_time()-time_st
