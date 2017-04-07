@@ -229,7 +229,7 @@ class IKController( object ):
     def tf_update_cb(self, tdat):
         # update ball position in real time
         # Filter ball outside x = 0 - 3.0m relative to base out
-        self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(15))
+        self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(20))
         p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
         # print "p : ", p[0]
         pos = PointStamped()

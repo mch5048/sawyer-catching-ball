@@ -62,7 +62,7 @@ class Obj3DDetector(object):
 
     class window_with_trackbars(object):
         def __init__(self, window_name, tb_defaults=[], tb_highs=[]):
-            #initialie variables and setup
+            #initialize variables and setup
             self.window_name = window_name
             self.tb_defaults = tb_defaults
             self.tb_highs = tb_highs
@@ -93,7 +93,7 @@ class Obj3DDetector(object):
         self.ph_model = image_geometry.PinholeCameraModel()
         self.tracked_pixel = Point()
         self.use_kb = False
-        self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
+        #self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
         self.ball_radius = 0
 
         # Get and set params
@@ -108,211 +108,33 @@ class Obj3DDetector(object):
 
         # subscribers
         self.cam_info_sub = rospy.Subscriber("/camera/rgb/camera_info", CameraInfo, self.update_model_cb)
-        # self.rgb_im_sub = rospy.Subscriber("/camera/rgb/image_color", Image, self.image_cb)
-        # self.image_rect_sub = rospy.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image, self.depth_cb)
         self.msg_filt_rgb_img_sub = message_filters.Subscriber("/camera/rgb/image_color", Image)
         self.msg_filt_depth_img_sub = message_filters.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image)
         self.t_sync = message_filters.ApproximateTimeSynchronizer([self.msg_filt_rgb_img_sub, self.msg_filt_depth_img_sub], 30, slop = 0.1)
-        # self.tss = message_filters.TimeSynchronizer(message_filters.Subscriber("/camera/rgb/image_color", Image),
-        #                        message_filters.Subscriber("/camera/depth_registered/hw_registered/image_rect", Image))
-        # self.tss.registerCallback(self.time_sync_img_cb)
-
-        # self.t_sync_test = message_filters.TimeSynchronizer([self.msg_filt_depth_img_sub], 30)
-        # self.t_sync_test.registerCallback(self.t_sync_test_cb)
         self.t_sync.registerCallback(self.time_sync_img_cb)
-
-        # Test whether the TimeSynchronizer is coded correctly or not
-        self.test_1 = rospy.Publisher('test_1', PointStamped, queue_size = 10)
-        self.test_2 = rospy.Publisher('test_2', PointStamped, queue_size = 10)
-        # self.test_tsync_timer = rospy.Timer(rospy.Duration(0.1), self.test_tsync_timer)
-        self.test_1_sub = message_filters.Subscriber("/test_1", PointStamped)
-        self.test_2_sub = message_filters.Subscriber("/test_2", PointStamped)        
-        self.t_sync_test = message_filters.ApproximateTimeSynchronizer([self.test_1_sub, self.test_2_sub], 30, slop = 0)
-        # self.t_sync_test = message_filters.TimeSynchronizer([self.test_1_sub], 30)
-        # self.t_sync_test.registerCallback(self.test_tsync)
-
 
         # publishers and timers
         self.kb_timer = rospy.Timer(rospy.Duration(0.1), self.keycb)
         self.start_time = 0
         self.tf_br = tf.TransformBroadcaster()
         # publishers for rosbag
-        self.rgb_img_tsync_pub = rospy.Publisher('time_sync_rgb_img', Image, queue_size = 10)
-        self.depth_img_tsync_pub = rospy.Publisher('time_sync_depth_img', Image, queue_size = 10)
-        self.ball_pixel_tsync_pub = rospy.Publisher('time_sync_ball_pixel_img', Point, queue_size = 10)
-
-        # plotting assistant
-        self.plotter = rospy.Timer(rospy.Duration(0.01), self.plotter_cb)
-        self.plot_flag = False
-        self.rec_plot_flag = False
-        self.plot_input_pixel_x = []
-        self.plot_input_pixel_y = []
-        self.plot_x = []
-        self.plot_y = []
-        self.plot_z = []
-        self.plot_t = []
-        self.plot_isnan = []
-        self.plot_isnan_t = []
-        self.pres_x = 0
-        self.pres_y = 0
-        self.pres_z = 0
-        self.pres_isnan = 0
-        # plot inputted pixel
-        self.pres_input_pix_y = 0
-        self.pres_input_pix_x = 0
-        # plot returned depth
-        self.plot_depth = []
-        self.pres_depth = 0
-        # plot returned norm vector
-        self.plot_norm_x = []
-        self.plot_norm_y = []
-        self.plot_norm_z = []
-        self.pres_norm_x = 0
-        self.pres_norm_y = 0
-        self.pres_norm_z = 0
-        # plot returned all array printed
-        self.pres_depth_original_array = []
-        self.csv_depth_original_array = []
-        self.pres_depth_filterNaN_array = []
-        self.csv_depth_filterNaN_array = []
-        self.pres_depth_filterRange_array = []
-        self.csv_depth_filterRange_array = []
-        self.pres_depth_filterOutliers_array = []
-        self.csv_depth_filterOutliers_array = []
-        # for plotting d_img
-        self.d_img_plot_flag = False
-        self.rec_d_img_plot_flag = False
-        self.bag_rgb_im = Image()
-        #self.depth_csv = 0
-        self.dirname = ''
+        # self.rgb_img_tsync_pub = rospy.Publisher('time_sync_rgb_img', Image, queue_size = 10)
+        # self.depth_img_tsync_pub = rospy.Publisher('time_sync_depth_img', Image, queue_size = 10)
+        # self.ball_pixel_tsync_pub = rospy.Publisher('time_sync_ball_pixel_img', Point, queue_size = 10)
 
 
-        # self.actual_js_sub = rospy.Subscriber("robot/joint_states", JointState, self.actual_js_cb)
-        # self.js_pub = rospy.Publisher("joint_states", JointState, queue_size=3)
-    # def update_cam_info(self):
-    #     bag = rosbag.Bag('bag_camera_info.bag', 'w')
-    #     camera_infos = bag.read_messages(topics='/camera/rgb/camera_info')
-    #     # camera_info = camera_infos.next()[1]
-    #     # camera_info = camera_infos[1]
-    #     self.ph_model.fromCameraInfo(camera_info)
-
-    def test_tsync(self, msg1, msg2):
-        print 'test proved~~~'
-
-    def test_tsync_timer(self, tdat):
-        time_a = rospy.Time.now()
-        a = PointStamped()
-        b = PointStamped()
-        # print tdat
-        print 'timer is running'
-        time_b = rospy.Time.now()
-        a.header.stamp = time_a
-        b.header.stamp = time_b
-        # print tdat.sec
-        self.test_1.publish(a)
-        self.test_2.publish(b)
 
     def time_sync_img_cb(self, rgb_img, depth_img):
         # rgb image process
-        print 'inside'
         self.image_cb(rgb_img)
         self.depth_cb(depth_img)
-        self.rgb_img_tsync_pub.publish(self.bag_rgb_im)
-        self.depth_img_tsync_pub.publish(depth_img)
+        # self.rgb_img_tsync_pub.publish(self.bag_rgb_im)
+        # self.depth_img_tsync_pub.publish(depth_img)
 
-
-    def plotter_cb(self, tdat):
-        if self.plot_flag:
-            self.bag_pix_and_img.close()
-            self.rec_plot_flag = False
-            self.plot_flag = False
-            plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
-            plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
-            plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
-            plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
-            plt.plot(self.plot_isnan_t, self.plot_isnan, 'x', label='NaN')
-            plt.show()
-            plt.plot(self.plot_t, self.plot_input_pixel_x, 'rx', label='NaN')
-            plt.plot(self.plot_t, self.plot_input_pixel_y, 'gx', label='NaN')
-            plt.show()
-            plt.plot(self.plot_t, self.plot_norm_x, 'r.', label='x(depth)')
-            plt.plot(self.plot_t, self.plot_norm_y, 'g.', label='y')
-            plt.plot(self.plot_t, self.plot_norm_z, 'b.', label='z')
-            plt.show()
-            plt.plot(self.plot_t, self.plot_x, 'ro', label='x(depth)')
-            plt.plot(self.plot_t, self.plot_y, 'g.', label='y')
-            plt.plot(self.plot_t, self.plot_z, 'bo', label='z')
-            plt.plot(self.plot_isnan_t, self.plot_isnan, 'x', label='NaN')
-            filename_traj_plot = "pos3D_olierFilt-%.3f_wtRanFilt-%.2f-%.2f.jpg" % (OUTLIER_FILT_NUM, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
-            plt.plot(self.plot_t, self.plot_depth, 'yo', label='raw_depth')
-            plt.savefig(os.path.join(self.dirname, filename_traj_plot))
-            plt.close()
-            plt.plot(self.plot_t, self.plot_input_pixel_x, 'rx', label='NaN')
-            plt.plot(self.plot_t, self.plot_input_pixel_y, 'gx', label='NaN')
-            time_name = time.strftime("%y_%m_%d_%Hh-%Mm-%Ss") 
-            filename_pix_plot = "%s_%s.jpg" % ("tracked_pixel",time_name)
-            plt.savefig(os.path.join(self.dirname, filename_pix_plot))
-            plt.close()
-            plt.plot(self.plot_t, self.plot_norm_x, 'r.', label='x(depth)')
-            plt.plot(self.plot_t, self.plot_norm_y, 'g.', label='y')
-            plt.plot(self.plot_t, self.plot_norm_z, 'b.', label='z')
-            filename_raw_norm = "%s_%s.jpg" % ("raw_3dRay",time_name)
-            plt.savefig(os.path.join(self.dirname, filename_raw_norm))
-            # write to csv file
-            with open(os.path.join(self.dirname, 'csv'), 'wb') as csvfile:
-                spamwriter = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
-                spamwriter.writerow(['u', 'v', 'repeated?',' | ', 'v_x', 'v_y', 'v_z'])
-                rgb_repeat = '0'
-                norm_repeat = '0'
-                both_repeat = 'False'
-                for s in range(len(self.plot_t)):
-                    for t in range(3):
-                        if s != 0 and (self.plot_input_pixel_x[s-1] == self.plot_input_pixel_x[s]) and (self.plot_input_pixel_y[s-1] == self.plot_input_pixel_y[s]):
-                            rgb_repeat = '1'
-                        if s != 0 and (self.plot_norm_x[s-1] == self.plot_norm_x[s]) and  (self.plot_norm_y[s-1] == self.plot_norm_y[s]) and  (self.plot_norm_z[s-1] == self.plot_norm_z[s]):
-                            norm_repeat = '1'
-                        if rgb_repeat == '1' and norm_repeat == '1':
-                            both_repeat = 'True'
-                    time_write = "%.4f" % (self.plot_t[s])
-                    spamwriter.writerow([time_write, self.plot_input_pixel_x[s], self.plot_input_pixel_y[s] ,' | ', self.plot_norm_x[s], self.plot_norm_y[s], self.plot_norm_z[s], ' | ', 'depth :', self.plot_depth[s], ' | ', rgb_repeat, norm_repeat, ' | ', both_repeat])
-                    rgb_repeat = '0'
-                    norm_repeat = '0'
-                    both_repeat = 'False'
-            with open(os.path.join(self.dirname, 'depth_array'), 'wb') as csvfile:
-                spamwriter = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
-                spamwriter.writerow(['depth\n', 'array'])
-                for s in range(len(self.plot_t)):
-                    time_write = "%.4f" % (self.plot_t[s])
-                    spamwriter.writerow([time_write, ' | ', 'd_img[y][x] :', self.plot_depth[s], '\nOriginal with all ',self.ball_radius/2,' pixels around center : ', self.csv_depth_original_array[s], '\nFilterNaN : ', self.csv_depth_filterNaN_array[s], '\nFilterWithinRange (', WITHIN_RAN_MIN,':',WITHIN_RAN_MAX,')',' : ', self.csv_depth_filterRange_array[s], '\nFilterOutliers at ', OUTLIER_FILT_NUM,' : ', self.csv_depth_filterOutliers_array[s]])
-
-            # self.plot_x = []
-            # self.plot_y = []
-            # self.plot_z = []
-            # self.plot_t = []
-            # self.plot_isnan = []
-            # self.plot_isnan_t = []
-            self.pres_x = 0
-            self.pres_y = 0
-            self.pres_z = 0
-            self.pres_isnan = 0
-            self.pres_input_pix_y = 0
-            self.pres_input_pix_x = 0
-            self.pres_depth = 0
-            del self.plot_x[:]
-            del self.plot_y[:]
-            del self.plot_z[:]
-            del self.plot_t[:]
-            del self.plot_isnan[:]
-            del self.plot_isnan_t[:]
-            del self.plot_depth[:]
-            del self.csv_depth_original_array[:]
-            del self.csv_depth_filterNaN_array[:]
-            del self.csv_depth_filterRange_array[:]
-            del self.csv_depth_filterOutliers_array[:]
 
 
     def get_and_set_params(self):
-        self.use_kb = rospy.get_param("kb", True)
+        self.use_kb = rospy.get_param("kb",False)
 
 
 
@@ -323,86 +145,35 @@ class Obj3DDetector(object):
     def depth_cb(self, depth_img):
         x = self.tracked_pixel.x
         y = self.tracked_pixel.y
+        
         bridge = CvBridge()
         d_img = bridge.imgmsg_to_cv2(depth_img)
         d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
-        try :
-            rec_coord = Point()
-            rec_coord.x = x
-            rec_coord.y = y
-            rec_coord.z = self.ball_radius
-            if self.rec_plot_flag:
-                self.bag_pix_and_img.write('rgb_img', self.bag_rgb_im)
-                self.bag_pix_and_img.write('depth_img',depth_img)
-                # rec_coord = Point()
-                # rec_coord.x = x
-                # rec_coord.y = y
-                # rec_coord.z = self.ball_radius
-                self.bag_pix_and_img.write('pixel_coord',rec_coord)
 
-            self.ball_pixel_tsync_pub.publish(rec_coord)
 
-            self.pres_input_pix_y = -y
-            self.pres_input_pix_x = -x
-            
-            depth = d_img[y][x]
-            # print depth
-            # self.depth_csv = depth
-            is_nan = 0
-            # if np.isnan(depth) or not sawyer_calc.is_within_range(depth,1,3):
-            #     depth_rand_array = [0.]
-            #     for i in range(-15,15):
-            #         for j in range(-15,15):
-            #             x_rand = x + i
-            #             y_rand = y + j
-            #             depth_rand_array.append(d_img[y_rand][x_rand])
-            #             # print "NaN? :", depth_rand_array
-            #             # print "Filter nan :", filter_nan(depth_rand_array)
-            #     depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-            #     depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
-            #     # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
-            #     depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
-            #     depth = sawyer_calc.mean(depth_rand_array)
-            #     self.within_ran_max = depth + 0.2
-            #     self.within_ran_min = 0
-            #     is_nan = 0.1
-            depth_rand_array = []
-            if np.isnan(depth):
-                is_nan = 0.1
-            # for i in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
-            #     for j in range(-AVG_PIX_RANGE,AVG_PIX_RANGE):
-            for i in range(-self.ball_radius,self.ball_radius):
+            # rec_coord = Point()
+            # rec_coord.x = x
+            # rec_coord.y = y
+            # rec_coord.z = self.ball_radius
+            # self.ball_pixel_tsync_pub.publish(rec_coord)
+        depth = d_img[y][x]
+        depth_rand_array = []
+        try:
+            for i in range(-self.ball_radius,self.ball_radius):   ##0.00113sec
                 for j in range(-self.ball_radius,self.ball_radius):
                     x_rand = x + i
                     y_rand = y + j
                     depth_rand_array.append(d_img[y_rand][x_rand])
-                    # print "NaN? :", depth_rand_array
-                    # print "Filter nan :", filter_nan(depth_rand_array)
-            # print depth_rand_array
-            self.pres_depth_original_array = depth_rand_array
-            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array)
-            self.pres_depth_filterNaN_array = depth_rand_array
-            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
-            self.pres_depth_filterRange_array = depth_rand_array 
-            #print depth_rand_array
-            # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, self.within_ran_min, self.within_ran_max)
-            # if len(depth_rand_array) == 0:
-            #     depth_rand_array = [1]
+            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array) ## 0.002-0.0047sec
+        # time_st = rospy.get_time()
+        # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
+            ##0.006-0.01
             depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
-            self.pres_depth_filterOutliers_array = depth_rand_array
-            #print depth_rand_array
+            # time_try = rospy.get_time()-time_st
+            # print time_try
             depth = sawyer_calc.mean(depth_rand_array)
-
+ 
             norm_v = self.ph_model.projectPixelTo3dRay((x,y))
-
-            # check if the function return the same vector every time
-            # old_norm = norm_v
-            # for k in range(5):
-            #     norm_v = self.ph_model.projectPixelTo3dRay((x,y))
-            #     if cmp(old_norm,norm_v) != 0:
-            #         print "not equal in five times"
-            #     old_norm = norm_v
-                # print old_norm
 
             scale = depth*1.0 / norm_v[2]
             pos = Point()
@@ -410,28 +181,11 @@ class Obj3DDetector(object):
             pos.x = pos_in_space[0]
             pos.y = pos_in_space[1]
             pos.z = pos_in_space[2]
-
             if not np.isnan(depth):
-                # print "tf sending"
+                #print 'z: ', pos.z, ' x: ', pos.x,' y: ', pos.y
                 # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
                 if scale != 0:
                     self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
-                if self.rec_plot_flag:
-                    self.pres_x = pos.z
-                    self.pres_y = -pos.x
-                    self.pres_z = -pos.y
-                    self.pres_isnan = is_nan
-                    self.pres_depth = depth
-                    # plot returned norm vector
-                    plot_norm = [z for z in norm_v]
-                    self.pres_norm_x = plot_norm[2]
-                    self.pres_norm_y = -plot_norm[0]
-                    self.pres_norm_z = -plot_norm[1]
-                    # if self.rec_plot_flag:
-                    #     self.plot_x.append(pos.z)
-                    #     self.plot_y.append(-pos.x)
-                    #     self.plot_z.append(-pos.y)
-                    #     self.plot_t.append(rospy.get_time())
         except IndexError:
             pass
 
@@ -439,32 +193,30 @@ class Obj3DDetector(object):
 
 
         # change black color to white color since green detection always detect black color too
-        b = self.trackbar.get_vals()[8:14]
+        try:
+            b = self.trackbar.get_vals()[8:14]
+            v = self.trackbar.get_vals()[0:6]
+            e = self.trackbar.get_vals()[6:8]
+        except AttributeError:
+            b = GREEN_TB_DEFAULTS[8:14]
+            v = GREEN_TB_DEFAULTS[0:6]
+            e = GREEN_TB_DEFAULTS[6:8]
         black_lo = np.array([b[0], b[1], b[2]])
         black_hi = np.array([b[3], b[4], b[5]])
         im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
+        im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
+        # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
         # im_b_to_w = cv2.bitwise_not(im_b_to_w) # the mask that cut black portion out
 
         b_to_w_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
         # img_blur = cv2.GaussianBlur(b_to_w_color_im, (9,9), 1)
         img_hsv = cv2.cvtColor(b_to_w_color_im, cv2.COLOR_BGR2HSV)   
-        # cv2.imshow('b to w', img_hsv)
-        # im_white = np.zeros(img_hsv.shape, dtype=np.uint8)
-        # x_range = img_hsv.shape[0]
-        # y_range = img_hsv.shape[1]
-        # im_white.fill(255)
-        # im_white = cv2.cvtColor(im_white, cv2.COLOR_BGR2HSV)
-        # print "img_raw : ", img_raw.shape, ", " ,img_raw.size, ", ",img_raw.dtype
-        # print "im_white : ", im_white.shape, ", " ,im_white.size, ", ",im_white.dtype
-        # for i in range(x_range):
-        #     for j in range(y_range):
-        #         im_white[i][j][2] = 255
-        # b_to_w_color_im = cv2.bitwise_and(img_raw, im_white, mask = im_b_to_w)
-        # b_to_w_color_im = cv2.bitwise_not(img_raw, mask = im_b_to_w)
 
 
         # v = self.trackbar.get_vals()[0:12]
-        v = self.trackbar.get_vals()[0:6]
+        # v = self.trackbar.get_vals()[0:6]
+
+            
         # v = GREEN_TB_DEFAULTS[0:12]
         # low and high band for detecting red color in hsv which spans at each end of h-band
         low_vals_lo = np.array([v[0], v[1], v[2]])
@@ -479,7 +231,7 @@ class Obj3DDetector(object):
         # e = self.trackbar.get_vals()[12:14]
         # e = GREEN_TB_DEFAULTS[12:14]
         # e = self.trackbar.get_vals()[12:14]
-        e = self.trackbar.get_vals()[6:8]
+        # e = self.trackbar.get_vals()[6:8]
         # kernel_erode = np.ones((4,4),np.uint8)
         # kernel_dilate = np.ones((7,7),np.uint8)
         kernel_erode = np.ones((e[0],e[0]),np.uint8)
@@ -523,49 +275,13 @@ class Obj3DDetector(object):
         #call the function from CvBridge
         bridge = CvBridge()
         cv_image = bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
-
-        #if self.rec_plot_flag:
-            #self.bag_pix_and_img.write('rgb_img',ros_img)
         # img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
         # img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)         
         # img_red, coords = self.specific_color_filter(img_hsv, cv_image)
         try:
-            # img_detect_color, coords = self.specific_color_filter(img_hsv, cv_image)
             img_detect_color, coords = self.specific_color_filter(cv_image, cv_image)
-            # cv2.imshow('image_detect', img_detect_color)
-            # ros_img_edit = bridge.cv2_to_imgmsg(img_detect_color, encoding="bgr8")
-            # self.bag_rgb_im = cv_image
-            ros_img_rgb = bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
-            self.bag_rgb_im = ros_img_rgb
-            #if self.rec_plot_flag:
-                #self.bag_pix_and_img.write('rgb_img',ros_img_edit)
+            # self.bag_rgb_im = bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
             cv2.imshow('image_raw', cv_image)
-            print "type of image", cv_image.dtype
-            if self.rec_plot_flag:
-                time = rospy.get_time() - self.start_time
-                filename_det = "%s_%d_%f.jpg" % ("im_detect", self.imwritecounter,time)
-                filename_raw = "%s_%d_%f.jpg" % ("im_raw", self.imwritecounter,time)
-                # filename_d_img = "%s_%d_%f.jpg" % ("im_d_img", self.imwritecounter,time)
-                self.imwritecounter += 1
-                cv2.imwrite(os.path.join(self.dirname, filename_det), img_detect_color)
-                cv2.imwrite(os.path.join(self.dirname, filename_raw), cv_image)
-                # cv2.imwrite(os.path.join(self.dirname, filename_d_img), self.d_img_write)
-                self.plot_input_pixel_x.append(self.pres_input_pix_x)
-                self.plot_input_pixel_y.append(self.pres_input_pix_y)
-                self.plot_x.append(self.pres_x)
-                self.plot_y.append(self.pres_y)
-                self.plot_z.append(self.pres_z)
-                self.plot_t.append(time) 
-                self.plot_isnan.append(self.pres_isnan)
-                self.plot_isnan_t.append(time)
-                self.plot_norm_x.append(self.pres_norm_x)
-                self.plot_norm_y.append(self.pres_norm_y)
-                self.plot_norm_z.append(self.pres_norm_z)
-                self.plot_depth.append(self.pres_depth)
-                self.csv_depth_original_array.append(self.pres_depth_original_array)
-                self.csv_depth_filterNaN_array.append(self.pres_depth_filterNaN_array)
-                self.csv_depth_filterRange_array.append(self.pres_depth_filterRange_array)
-                self.csv_depth_filterOutliers_array.append(self.pres_depth_filterOutliers_array)
             cv2.waitKey(1)
             self.tracked_pixel.x = coords[0]
             self.tracked_pixel.y = coords[1] 
@@ -582,16 +298,7 @@ class Obj3DDetector(object):
                 rospy.signal_shutdown("Escape pressed!")
             else:
                 print c
-            if c == 'p':
-                rospy.loginfo("You pressed 'p', Plotting")
-                self.dirname = time.strftime("%y_%m_%d_%Hh-%Mm-%Ss")  
-                os.mkdir(self.dirname)
-                # rosbag creating
-                filename_bag = "%s_%s.bag" % ("bag", self.dirname)
-                self.bag_pix_and_img = rosbag.Bag(os.path.join(self.dirname, filename_bag), 'w')
-                self.start_time = rospy.get_time()
-                self.rec_plot_flag = True
-            elif c == 'e':
+            if c == 'e':
                 rospy.loginfo("You pressed 'e', Stop plotting")
                 self.plot_flag = True
             elif c == 'a':
@@ -608,7 +315,6 @@ class Obj3DDetector(object):
     def print_help(self):
         help_string = \
         """
-        'p'   ~  Start the plot
         'e'   ~  Stop and plot
         ##### D_IMG plot #####
         'a'   ~  Start the d_img plot
@@ -623,7 +329,6 @@ def main():
     rospy.init_node('ball_3D_detector', log_level=rospy.INFO)
 
     try:
-        # use_kb = True
         balldetect = Obj3DDetector()
     except rospy.ROSInterruptException: pass
 
