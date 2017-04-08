@@ -264,10 +264,11 @@ class IKController( object ):
                 # check if the ball is being thrown yet
                 if not self.start_calc_flag:
                     self.check_start_throw()
-                    self.ball_marker.draw_line_strips([1, 1, 0.5, 1], [0.03, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
+                    self.ball_marker.draw_spheres([0.7, 0.43, 0.5, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
+                    self.ball_marker.draw_line_strips([1, 1, 0.5, 1], [0.015, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
                 if self.start_calc_flag:                    
                     # calculate the trajectory based on received tf
-                    self.ball_marker.delete_line_strips()
+                    self.ball_marker.delete_all_mks()
                     print "Throw!!!!"
                     
 

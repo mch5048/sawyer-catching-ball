@@ -6,9 +6,11 @@ class MarkerDrawer(object):
     def __init__(self, frame_in, namespace, max_id_num=500):
         rospy.loginfo("Creating MarkerDrawer Class")
         self.frame = frame_in # eg. "/map" or "/base"
-        self.ns = namespace # Namespace to place this object in... used in conjunction with id to create a unique name for the object
+        self.ls_ns = namespace + '_ls_' # Namespace to place this object in... used in conjunction with id to create a unique name for the object
+        self.sph_ns = namespace + '_sph_'
         self.max_id_num = max_id_num
-        self.id_num = 1
+        self.ls_id_num = 1
+        self.sph_id_num = 1
 
         # Marker instances
         self.line_strip = Marker()
@@ -17,34 +19,58 @@ class MarkerDrawer(object):
         # Publishers
         self.mk_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
 
-    def delete_line_strips(self):
+
+    def delete_all_mks(self):
         self.line_strip.action = 3 #delete all
         self.mk_pub.publish(self.line_strip)
         return
 
-    def draw_line_strips(self, strip_rgba_arr, strip_scale_arr, p0, p1, lifetime=0):
+
+    def draw_line_strips(self, rgba_arr, scale_arr, p0, p1, lifetime=0):
         # draw line strip based on p0 to p1 
         self.line_strip.header.frame_id = self.frame
         self.line_strip.header.stamp = rospy.Time.now()
         self.line_strip.action = Marker.ADD
-        if (self.id_num < self.max_id_num):
-            self.id_num += 1 
+        if (self.ls_id_num < self.max_id_num):
+            self.ls_id_num += 1 
         else:
-            self.id_num = 1
-        self.line_strip.ns = self.ns + str(self.id_num)
+            self.ls_id_num = 1
+        self.line_strip.ns = self.ls_ns + str(self.ls_id_num)
         self.line_strip.type = Marker.LINE_STRIP
-        self.line_strip.scale.x = strip_scale_arr[0]
-        self.line_strip.scale.y = strip_scale_arr[1]
-        self.line_strip.scale.z = strip_scale_arr[2]
-        # print "scale: ", self.line_strip.scale
-        self.line_strip.color.r = strip_rgba_arr[0]
-        self.line_strip.color.g = strip_rgba_arr[1]
-        self.line_strip.color.b = strip_rgba_arr[2]
-        self.line_strip.color.a = strip_rgba_arr[3]
-        # print "scale: ", self.line_strip.color
+        self.line_strip.scale.x = scale_arr[0]
+        self.line_strip.scale.y = scale_arr[1]
+        self.line_strip.scale.z = scale_arr[2]
+        self.line_strip.color.r = rgba_arr[0]
+        self.line_strip.color.g = rgba_arr[1]
+        self.line_strip.color.b = rgba_arr[2]
+        self.line_strip.color.a = rgba_arr[3]
         self.line_strip.points = [p0,p1]
-        # print "points: ", self.line_strip.points
         self.line_strip.lifetime = rospy.Duration.from_sec(lifetime)
         self.mk_pub.publish(self.line_strip)
-        rospy.sleep(0.02)
+        rospy.sleep(0.01)
+        return
+
+
+    def draw_spheres(self, rgba_arr, scale_arr, p, lifetime=0):
+        self.sphere.header.frame_id = self.frame
+        self.sphere.header.stamp = rospy.Time.now()
+        self.sphere.action = Marker.ADD
+        if (self.sph_id_num < self.max_id_num):
+            self.sph_id_num += 1 
+        else:
+            self.sph_id_num = 1
+        self.sphere.ns = self.sph_ns + str(self.sph_id_num)
+        self.sphere.type = Marker.SPHERE
+        self.sphere.scale.x = scale_arr[0]
+        self.sphere.scale.y = scale_arr[1]
+        self.sphere.scale.z = scale_arr[2]
+        self.sphere.color.r = rgba_arr[0]
+        self.sphere.color.g = rgba_arr[1]
+        self.sphere.color.b = rgba_arr[2]
+        self.sphere.color.a = rgba_arr[3]
+        # self.sphere.points = [p]
+        self.sphere.pose.position = p
+        self.sphere.lifetime = rospy.Duration.from_sec(lifetime)
+        self.mk_pub.publish(self.sphere)
+        rospy.sleep(0.01)
         return
