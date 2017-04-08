@@ -21,8 +21,10 @@ class MarkerDrawer(object):
 
 
     def delete_all_mks(self):
-        self.line_strip.action = 3 #delete all
-        self.mk_pub.publish(self.line_strip)
+        del_mk = Marker()
+        # self.line_strip.action = 3 #delete all
+        del_mk.action = 3 #delete all
+        self.mk_pub.publish(del_mk)
         return
 
 
