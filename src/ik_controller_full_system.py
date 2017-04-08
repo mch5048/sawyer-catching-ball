@@ -33,14 +33,14 @@ import intera_interface
 import numpy as np
 import threading
 from urdf_parser_py.urdf import URDF
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 #################
 # LOCAL IMPORTS #
 #################
 import kbhit
 import sawyer_catch_ball_calc as sawyer_calc
-
+import sawyer_catch_ball_markers as sawyer_mk
 
 # GLOBAL VARS
 BASE = "base"
@@ -77,7 +77,8 @@ class IKController( object ):
         self.kinect_calibrate_flag = False
         self.running_flag = False
         # self.start_throw = False
-        self.start_calc = False
+        self.start_calc_flag = False
+        self.ball_marker = sawyer_mk.MarkerDrawer("/base", "ball_line_strip", 500)
         self.robot = URDF.from_parameter_server()  
         self.kin = KDLKinematics(self.robot, BASE, EE_FRAME)
         self.limb_interface = intera_interface.Limb()
@@ -90,6 +91,8 @@ class IKController( object ):
         self.loop_counter = 0
         # self.des_point = Point()
         self.des_point = PointStamped()
+
+
         # kbhit instance
         self.kb = kbhit.KBHit()
         rospy.on_shutdown(self.kb.set_normal_term)
@@ -97,8 +100,8 @@ class IKController( object ):
         # publishers and timers
         self.kb_timer = rospy.Timer(rospy.Duration(0.1), self.keycb)
         self.tf_timer = rospy.Timer(rospy.Duration(0.01), self.tf_update_cb)
-        self.calc_timer = rospy.Timer(rospy.Duration(0.01), self.calc_cb)
-        self.starting_calc_timer = rospy.Timer(rospy.Duration(0.05), self.starting_flag_trigger_cb)
+        # self.calc_timer = rospy.Timer(rospy.Duration(0.01), self.calc_cb)
+        # self.starting_calc_timer = rospy.Timer(rospy.Duration(0.05), self.starting_flag_trigger_cb)
         self.final_x_total = 0
         self.final_y_total = 0
 
@@ -127,6 +130,14 @@ class IKController( object ):
     #         self.plot_flag = False
             
 
+    def check_start_throw(self):
+        # check if the ball is being thrown, by comparing between z of the first and second frame
+        z_past = self.pos_rec[0].point.z
+        z_present = self.pos_rec[1].point.z
+        if (z_present - z_past > 0.3):
+            self.start_calc_flag = True
+
+
     def roll_mat(self, mat):
         row_num = len(mat)
         for i in range(0,row_num - 1):
@@ -153,41 +164,41 @@ class IKController( object ):
         
 
     # check if the ball has been thrown yet
-    def starting_flag_trigger_cb(self,tdat):
-        if self.running_flag:
-            # check the distance in Z to know if the bal is being thrown or not
-            if not self.start_calc:
-                # z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])   
-                z_diff = abs((self.pos_rec[1]).point.z - (self.pos_rec[0]).point.z) 
-                # x_diff = ((self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x)
-                # print "test : ", (self.pos_rec[1]).header.stamp
-                # dt = (self.pos_rec[1]).header.stamp - (self.pos_rec[0]).header.stamp
-                # dt1 = (self.pos_rec[1]).header.stamp 
-                # dt2 = (self.pos_rec[0]).header.stamp 
-                # dt = dt1 - dt2
-                # x_dot_diff = 1.0*x_diff/dt
-                print "z_diff : ", z_diff
-                if z_diff > 0.1: #5 cm
-                # if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
-                # if x_diff < -0.1: #0.1 - 0.15
-                    # self.counter = 20
-                    self.start_calc = True
-                    # rospy.loginfo("Start calculation")
-                    self.loop_counter = 0
-                    self.final_x_total = 0
-                    self.final_y_total = 0
-            if self.start_calc:    
-                x_diff = (self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x
-                if x_diff > 0.1: # 1 cm
-                    # print "\n\ncheck why after first trial, it starts and stops suddenly."
-                    print "pos_rec_old : ", self.pos_rec[0].point
-                    print "pos_rec_new : ", self.pos_rec[1].point
-                    print "x_diff : ", x_diff
-                    #     # self.counter = 20
-                    self.running_flag = False
-                    self.start_calc = False
-                    rospy.loginfo("Stop calculation")
-                    print "final point : ",self.des_point.point
+    # def starting_flag_trigger_cb(self,tdat):
+    #     if self.running_flag:
+    #         # check the distance in Z to know if the bal is being thrown or not
+    #         if not self.start_calc:
+    #             # z_diff = abs((self.pos_rec[1])[2] - (self.pos_rec[0])[2])   
+    #             z_diff = abs((self.pos_rec[1]).point.z - (self.pos_rec[0]).point.z) 
+    #             # x_diff = ((self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x)
+    #             # print "test : ", (self.pos_rec[1]).header.stamp
+    #             # dt = (self.pos_rec[1]).header.stamp - (self.pos_rec[0]).header.stamp
+    #             # dt1 = (self.pos_rec[1]).header.stamp 
+    #             # dt2 = (self.pos_rec[0]).header.stamp 
+    #             # dt = dt1 - dt2
+    #             # x_dot_diff = 1.0*x_diff/dt
+    #             print "z_diff : ", z_diff
+    #             if z_diff > 0.1: #5 cm
+    #             # if z_diff > 0.2 and abs(z_diff) < 1: #0.1 - 0.15
+    #             # if x_diff < -0.1: #0.1 - 0.15
+    #                 # self.counter = 20
+    #                 self.start_calc = True
+    #                 # rospy.loginfo("Start calculation")
+    #                 self.loop_counter = 0
+    #                 self.final_x_total = 0
+    #                 self.final_y_total = 0
+    #         if self.start_calc:    
+    #             x_diff = (self.pos_rec[1]).point.x - (self.pos_rec[0]).point.x
+    #             if x_diff > 0.1: # 1 cm
+    #                 # print "\n\ncheck why after first trial, it starts and stops suddenly."
+    #                 print "pos_rec_old : ", self.pos_rec[0].point
+    #                 print "pos_rec_new : ", self.pos_rec[1].point
+    #                 print "x_diff : ", x_diff
+    #                 #     # self.counter = 20
+    #                 self.running_flag = False
+    #                 self.start_calc = False
+    #                 rospy.loginfo("Stop calculation")
+    #                 print "final point : ",self.des_point.point
                     
 
 
@@ -197,7 +208,7 @@ class IKController( object ):
         if self.running_flag:
             # if not self.start_calc:
             # self.ball_move()
-            # wait until start_calc flag is ran and there's no repetitive pos_rec by omparing between self.old_pos_rec and self.pos_rec
+            # wait until start_calc flag is ran and there's no repetitive pos_rec by comparing between self.old_pos_rec and self.pos_rec
             if self.start_calc and (self.old_pos_rec != self.pos_rec):        
                 rospy.loginfo("\n\nCalculating....")      
                 # calculate x and y fromm two points in array
@@ -243,27 +254,26 @@ class IKController( object ):
         pos.point.y  = p[1]
         pos.point.z  = p[2]
         # filter repeated received tf out
-        if (self.pos_rec[1].header.stamp != pos.header.stamp) and (self.pos_rec[1].point.x != pos.point.x):
+        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x):
             self.roll_mat(self.pos_rec)
-            self.pos_rec[1] = pos
+            self.pos_rec[-1] = pos
         # choose only a non-repeated pos_rec by comparing between the timestamped of the present and past pos_rec
         if (self.last_tf_time != self.pos_rec[0].header.stamp):
+            # If running_flag is True, start detecting
+            if self.running_flag:
+                # check if the ball is being thrown yet
+                if not self.start_calc_flag:
+                    self.check_start_throw()
+                    self.ball_marker.draw_line_strips([1, 1, 0.5, 1], [0.03, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
+                if self.start_calc_flag:                    
+                    # calculate the trajectory based on received tf
+                    self.ball_marker.delete_line_strips()
+                    print "Throw!!!!"
+                    
+
             self.last_tf_time = self.pos_rec[0].header.stamp
 
-        if self.running_flag:
-            if self.counter < 20:
-                print "This must be fully filled before throwing: ", self.pos_rec
-            self.counter += 1
-            if pos.point.x < 3 and abs(pos.point.y) < 2 and (pos.point.x!=self.pos_rec[len(self.pos_rec) - 1].point.x) or (pos.point.y!=self.pos_rec[len(self.pos_rec) - 1].point.y):
-                self.roll_mat(self.pos_rec)
-                self.pos_rec[-1] = pos
-                # self.plot_x.append(pos.point.x)
-                # self.plot_y.append(pos.point.y)
-                # self.plot_z.append(pos.point.z)
-                # self.plot_t.append(pos.header.stamp)
-                # print self.pos_rec[len(self.pos_rec) - 1].point
-                # print "\npos old x:", self.pos_rec[0].point.x, " y: ", self.pos_rec[0].point.y, "z: ", self.pos_rec[0].point.z
-                # print "\npos new x:", self.pos_rec[1].point.x, " y: ", self.pos_rec[1].point.y, "z: ", self.pos_rec[1].point.z
+
 
     def keycb(self, tdat):
         # check if there was a key pressed, and if so, check it's value and
@@ -277,7 +287,6 @@ class IKController( object ):
             if c == 's':
                 rospy.loginfo("You pressed 's', Program starts. Sawyer is waiting for the ball to be thrown.")
                 self.running_flag = not self.running_flag
-                
             elif c == 'c':
                 rospy.loginfo("You pressed 'c', Start calibration\nrunning_flag = False")
                 self.running_flag = False
