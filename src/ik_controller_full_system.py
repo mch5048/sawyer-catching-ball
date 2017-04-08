@@ -264,12 +264,12 @@ class IKController( object ):
                 # check if the ball is being thrown yet
                 if not self.start_calc_flag:
                     self.check_start_throw()
-                    self.ball_marker.draw_spheres([0.7, 0.43, 0.5, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
-                    self.ball_marker.draw_line_strips([1, 1, 0.5, 1], [0.015, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
+                    self.ball_marker.draw_spheres([0, 0.7, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
+                    self.ball_marker.draw_line_strips([0, 0.1, 0, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
                 if self.start_calc_flag:                    
                     # calculate the trajectory based on received tf
-                    self.ball_marker.delete_all_mks()
-                    print "Throw!!!!"
+                    self.ball_marker.draw_spheres([0.7, 0, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
+                    self.ball_marker.draw_line_strips([0.1, 0, 0, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
                     
 
             self.last_tf_time = self.pos_rec[0].header.stamp
@@ -288,6 +288,8 @@ class IKController( object ):
             if c == 's':
                 rospy.loginfo("You pressed 's', Program starts. Sawyer is waiting for the ball to be thrown.")
                 self.running_flag = not self.running_flag
+                if not self.running_flag:
+                    self.ball_marker.delete_all_mks()
             elif c == 'c':
                 rospy.loginfo("You pressed 'c', Start calibration\nrunning_flag = False")
                 self.running_flag = False
