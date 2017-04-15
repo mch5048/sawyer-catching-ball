@@ -78,13 +78,15 @@ class IKController( object ):
         self.running_flag = False
         # self.start_throw = False
         self.start_calc_flag = False
-        self.ball_marker = sawyer_mk.MarkerDrawer("/base", "ball_line_strip", 500)
+        self.ball_marker = sawyer_mk.MarkerDrawer("/base", "ball", 500)
+        self.drop_point = Point()
+        self.drop_point_marker = sawyer_mk.MarkerDrawer("/base", "dropping_ball", 500)
         self.robot = URDF.from_parameter_server()  
         self.kin = KDLKinematics(self.robot, BASE, EE_FRAME)
         self.limb_interface = intera_interface.Limb()
         self.pos_rec = [PointStamped() for i in range(2)] # array 1x2 with each cell storing a PointStamped with cartesian position of the ball in the past two frames
         self.old_pos_rec = [PointStamped() for i in range(2)]
-        self.last_tf_time = 0
+        self.last_tf_time = rospy.Time()
         self.tf_listener = tf.TransformListener()
         self.tf_bc = tf.TransformBroadcaster()
         self.counter = 0 
@@ -134,9 +136,15 @@ class IKController( object ):
         # check if the ball is being thrown, by comparing between z of the first and second frame
         z_past = self.pos_rec[0].point.z
         z_present = self.pos_rec[1].point.z
-        if (z_present - z_past > 0.3):
+        if (z_present - z_past > 0.05):
             self.start_calc_flag = True
 
+    def check_stop_throw(self):
+        # check if the ball reach the end of trajectory, if so, raise down the start_calc_flag
+        x_past = self.pos_rec[0].point.x
+        x_present = self.pos_rec[1].point.x
+        if (x_present - x_past > 0):
+            self.start_calc_flag = False
 
     def roll_mat(self, mat):
         row_num = len(mat)
@@ -246,10 +254,14 @@ class IKController( object ):
     def tf_update_cb(self, tdat):
         # update ball position in real time
         # Filter ball outside x = 0 - 3.0m relative to base out
-        self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(20))
+        try:
+            self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(0.5))
+        except tf.Exception:
+            rospy.loginfo("No frame of /ball from /base received, stop calculation. self.start_calc_flag = False")
         p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
         pos = PointStamped()
-        pos.header.stamp = rospy.get_time()
+        # pos.header.stamp = rospy.get_time()
+        pos.header.stamp = rospy.Time.now()
         pos.point.x  = p[0]
         pos.point.y  = p[1]
         pos.point.z  = p[2]
@@ -265,15 +277,21 @@ class IKController( object ):
                 if not self.start_calc_flag:
                     self.check_start_throw()
                     self.ball_marker.draw_spheres([0, 0.7, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
-                    self.ball_marker.draw_line_strips([0, 0.1, 0, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
-                if self.start_calc_flag:                    
-                    # calculate the trajectory based on received tf
+                    self.ball_marker.draw_line_strips([5.7, 1, 4.7, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
+                if self.start_calc_flag:
+                    self.check_stop_throw()
+                    if not self.start_calc_flag:
+                        return
+                    # draw markers
                     self.ball_marker.draw_spheres([0.7, 0, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
-                    self.ball_marker.draw_line_strips([0.1, 0, 0, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
-                    
-
+                    self.ball_marker.draw_line_strips([1, 0.27, 0.27,1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
+                    self.ball_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.pos_rec[0].point, 0.03)
+                    # calculate the dropping position based on 2 points
+                    self.drop_point = sawyer_calc.projectile_calc(self.pos_rec[0], self.pos_rec[1], Z_CENTER)
+                    self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
+                    self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
+                    # self.drop_point_marker.draw_line_strips([0, 1, 1,1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
             self.last_tf_time = self.pos_rec[0].header.stamp
-
 
 
     def keycb(self, tdat):

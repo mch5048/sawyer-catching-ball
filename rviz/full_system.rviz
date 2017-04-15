@@ -207,8 +207,6 @@ Visualization Manager:
         All Enabled: false
         ball:
           Value: true
-        ball_final:
-          Value: true
         base:
           Value: false
         camera_depth_frame:
@@ -321,8 +319,6 @@ Visualization Manager:
       Tree:
         world:
           base:
-            ball_final:
-              {}
             camera_link:
               ball:
                 {}
@@ -431,6 +427,14 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: visualization_marker
+      Name: Marker
+      Namespaces:
+        ball_line_strip: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -455,7 +459,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.80332
+      Distance: 3.2909
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -467,10 +471,10 @@ Visualization Manager:
         Z: -0.0207027
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.7248
+      Pitch: 0.2898
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.144066
+      Yaw: 6.08725
     Saved: ~
 Window Geometry:
   Displays:
@@ -488,5 +492,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1367
-  X: 171
-  Y: 30
+  X: 161
+  Y: 20
