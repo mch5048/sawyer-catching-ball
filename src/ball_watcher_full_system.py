@@ -21,7 +21,7 @@ PARAMS:
 # ROS IMPORTS #
 ###############
 import rospy
-from geometry_msgs.msg import Pose, Point, Quaternion, PointStamped
+from geometry_msgs.msg import Pose, Point, Quaternion, PointStamped, PoseStamped
 import tf
 import tf.transformations as tr
 from pykdl_utils.kdl_kinematics import KDLKinematics
@@ -41,6 +41,7 @@ from urdf_parser_py.urdf import URDF
 import kbhit
 import sawyer_catch_ball_calc as sawyer_calc
 import sawyer_catch_ball_markers as sawyer_mk
+from ik_controller_full_system import IKController
 
 # GLOBAL VARS
 BASE = "base"
@@ -82,6 +83,7 @@ class BallWatcher(object):
         self.drop_point = Point()
         self.drop_point_arr = []
         self.drop_point_marker = sawyer_mk.MarkerDrawer("/base", "dropping_ball", 500)
+        self.ik_cont = IKController()
 
         self.robot = URDF.from_parameter_server()  
         self.kin = KDLKinematics(self.robot, BASE, EE_FRAME)
@@ -153,6 +155,7 @@ class BallWatcher(object):
                     self.ball_marker.draw_line_strips([5.7, 1, 4.7, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
                 if self.start_calc_flag:
                     self.check_stop_throw()
+                    self.ik_cont.running_flag = True
                     if not self.start_calc_flag:
                         return
                     # draw markers
@@ -166,6 +169,10 @@ class BallWatcher(object):
                     self.drop_point_arr = sawyer_calc.point_msg_reject_outliers_xAxis(self.drop_point_arr, 1.5)
                     self.drop_point = sawyer_calc.point_msg_avg(self.drop_point_arr)
                     # average drop point
+                    input_posestamped = PoseStamped()
+                    input_posestamped.pose.position = self.drop_point
+                    input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
+                    self.ik_cont.set_goal_from_pose(input_posestamped)
                     self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                     self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
                     # self.drop_point_marker.draw_line_strips([0, 1, 1,1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)

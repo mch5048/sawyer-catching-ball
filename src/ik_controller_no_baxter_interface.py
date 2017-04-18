@@ -252,7 +252,7 @@ class IKController( object ):
         # print "max vel joint : ", names[np.where(qdot == np.amax(qdot))[0]], " : ", qdot[np.where(qdot == np.amax(qdot))[0]]
 
         if np.amax(qdot) > self.joint_vel_limit:
-            print "joint limit reach !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11"
+            print "joint limit reach !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     
         self.q_sim += self.step_scale*qdot
         self.joint_cmd.velocity = qdot 
