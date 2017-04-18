@@ -8,13 +8,16 @@ class MarkerDrawer(object):
         self.frame = frame_in # eg. "/map" or "/base"
         self.ls_ns = namespace + '_ls_' # Namespace to place this object in... used in conjunction with id to create a unique name for the object
         self.sph_ns = namespace + '_sph_'
+        self.numtxt_ns = namespace + '_numtxt_'
         self.max_id_num = max_id_num
         self.ls_id_num = 1
         self.sph_id_num = 1
+        self.numtxt_id_num = 0
 
         # Marker instances
         self.line_strip = Marker()
         self.sphere = Marker()
+        self.numtxt = Marker()
 
         # Publishers
         self.mk_pub = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
@@ -76,3 +79,27 @@ class MarkerDrawer(object):
         self.mk_pub.publish(self.sphere)
         rospy.sleep(0.01)
         return
+
+        
+    def draw_numtxts(self, rgba_arr, size, p, floating_height=0, lifetime=0):
+        self.numtxt.header.frame_id = self.frame
+        self.numtxt.header.stamp = rospy.Time.now()
+        self.numtxt.action = Marker.ADD
+        if (self.numtxt_id_num < self.max_id_num):
+            self.numtxt_id_num += 1 
+        else:
+            self.numtxt_id_num = 1
+        self.numtxt.ns = self.numtxt_ns + str(self.numtxt_id_num)
+        self.numtxt.type = Marker.TEXT_VIEW_FACING
+        self.numtxt.scale.z = size # size of Z equal ot the height of the uppercase 'A'
+        self.numtxt.color.r = rgba_arr[0]
+        self.numtxt.color.g = rgba_arr[1]
+        self.numtxt.color.b = rgba_arr[2]
+        self.numtxt.color.a = rgba_arr[3]
+        p.z = p.z + floating_height
+        self.numtxt.pose.position = p 
+        self.numtxt.text = str(self.numtxt_id_num)
+        self.numtxt.lifetime = rospy.Duration.from_sec(lifetime)
+        self.mk_pub.publish(self.numtxt)
+        rospy.sleep(0.01)
+        return            

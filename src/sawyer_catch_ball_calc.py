@@ -23,6 +23,9 @@ M = np.array([[0., 0., 1., 1.0155],
               [s10, -c10, 0., 0.317],
               [0., 0., 0., 1.]])
 
+#######################
+# PHYSICS CALCULATION #
+#######################
 
 def projectile_calc(pointstamped_0, pointstamped_1, z_ref):
     p0 = pointstamped_0.point
@@ -47,7 +50,16 @@ def projectile_calc(pointstamped_0, pointstamped_1, z_ref):
     a = g/2
     b = -(z1-z0)/dt
     c = z_ref - z1
-    tDropList = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]   
+    try:
+        tDropList = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]   
+    except ValueError:
+        print "Quadratic error: "
+        print "a: ", a
+        print "b: ", b
+        print "c: ", c
+        print "z1: ", z1
+        print "z0: ", z0
+        print "z_ref: ", z_ref
     tDrop = max(tDropList)
 
     #find final position
@@ -62,199 +74,37 @@ def projectile_calc(pointstamped_0, pointstamped_1, z_ref):
 
     return point_ret
 
+###################
+# ROS MSG FILTERS #
+###################
 
-def projectile_calc_ver3(pointstamped_0, pointstamped_1, z_ref):
-    p0 = pointstamped_0.point
-    p1 = pointstamped_1.point
-    t0 = pointstamped_0.header.stamp.secs + pointstamped_0.header.stamp.nsecs*(10**(-9))
-    t1 = pointstamped_1.header.stamp.secs + pointstamped_1.header.stamp.nsecs*(10**(-9))
-
-    dt = t1 - t0
-
-    x0 = p0.x 
-    x1 = p1.x
-    y0 = p0.y
-    y1 = p1.y
-    z0 = p0.z 
-    z1 = p1.z
-    
-    x_delta = x1 - x0
-    y_delta = y1 - y0
-    z_delta = z1 - z0
-
-    # alpha = atan2(-(y_delta), abs(x_delta))
-    alpha = atan2(y_delta, x_delta)
-
-    # project to 2d position
-    ## find initial velocity
-    uVert = abs(x_delta/cos(alpha))/dt
-    uHor = abs(z_delta)/dt
-    ## find dropping time 
-    g = 9.8
-    sVert = z_ref - z1
-    a = 0.5*g
-    b = -uVert
-    c = sVert
-    print "a: ", a
-    print "b: ", b
-    print "c: ", c
-    tList = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]   
-    tDrop = max(tList)
-    ## plugin tDrop to get vertical motion
-    x1_2D = abs(x_delta)*cos(alpha)
-    z1_2D = z1
-    ## calculate in 2D projection
-    sHorFinal = x1 - uHor * tDrop
-
-    point_ret = Point()
-    point_ret.x = sHorFinal*cos(alpha)
-    point_ret.y = sHorFinal*sin(alpha)
-    point_ret.z = z_ref
-
-    return point_ret
-
-    
-
-
-def projectile_calc_ver2(pointstamped_0, pointstamped_1, z_ref):
-# calculate the final position of the projectile motion based on two given points
-# 0 and 1 represent first and second position of points in time
-# Cartesian frame based on Sawyer's /base frame
-    p0 = pointstamped_0.point
-    p1 = pointstamped_1.point
-    t0 = pointstamped_0.header.stamp.secs + pointstamped_0.header.stamp.nsecs*(10**(-9))
-    t1 = pointstamped_1.header.stamp.secs + pointstamped_1.header.stamp.nsecs*(10**(-9))
-
-    dt = t1 - t0
-
-    x0 = p0.x 
-    x1 = p1.x
-    y0 = p0.y
-    y1 = p1.y
-    z0 = p0.z 
-    z1 = p1.z
-
-    x_delta = x1 - x0
-    y_delta = y1 - y0
-    z_delta = z1 - z0
-
-    theta = atan(abs(y_delta/x_delta))
-
-    # d_vert = z_ref - z1
-    d_vert = z1 - z_ref
-    u_vert = z_delta/dt
-    d_hor = sqrt(x_delta**2 + y_delta**2)
-    u_hor = -1.0*d_hor/dt
-
-    # if u_hor == 0:
-    #     u_hor = 0.00001
-    a = g/(2*(u_hor**2))
-    b = -u_vert/u_hor
-    c = d_vert
-
-    s = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]        
-    s_max = max(s)
-
-    # Point() of the ball dropping position
-    point_ret = Point()
-    
-    point_ret.x = x1 - s_max*cos(theta)
-    if y_delta > 0:
-        point_ret.y = y1 + s_max*sin(theta)
-    elif y_delta < 0:
-        point_ret.y = y1 - s_max*sin(theta)
-    point_ret.z = z_ref
-    return point_ret
-
-def projectile_calc_ver1(pos, z_ref):
-    
-    # dt =1.0/hz
-    # print pos[0]
-    # print pos[1]
-    dt = (pos[1].header.stamp) - (pos[0].header.stamp)
-    array_size = len(pos)
-    max_s_list = [Point() for i in range(array_size - 1)]
-    # ret_pos = Point()
-    ret_pos = PointStamped()
-    
-    print "\n\nlog in sawyer_calc.py"
-    print "Position old in pos : ", pos[0].point
-    print "Position new in pos : ", pos[1].point
-    
-
-    for i in range(array_size - 1):
-        x_b = (pos[i+1]).point.x 
-        x_a = (pos[i]).point.x
-        y_b = (pos[i+1]).point.y
-        y_a = (pos[i]).point.y
-        z_b = (pos[i+1]).point.z 
-        z_a = (pos[i]).point.z
-
-        x_delta = x_b - x_a
-        y_delta = y_b - y_a
-        z_delta = z_b - z_a    
-
-        # theta1 = atan2(y_a,x_a)
-        # theta2 = atan2(y_b,x_b)
-        # theta = (theta1 + theta2)/2.0
-        theta = atan(abs(y_delta/x_delta))
-
-        d_vert = z_ref - z_b
-        # d_vert = z_ref - z_a
-        u_vert = z_delta/dt
-        d_hor = sqrt(x_delta**2 + y_delta**2)
-        u_hor = -1.0*d_hor/dt
-        if u_hor == 0:
-            u_hor = 0.00001
-        print "x_delta:", x_delta, " y_delta:", y_delta, " z_delta:", z_delta
-        print " theta:", theta
-        print "dt:", dt
-        print "d_hor:",d_hor, 
-        print "u_hor:", u_hor
-        a = g/(2*(u_hor**2))
-        b = -u_vert/u_hor
-        c = d_vert
-        print "a:",a, " b:",b, " c:",c
-        s = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]        
-        s_max = max(s)
-        print "s_max:", s_max
-
-        pos_ret = Point()
-
-        pos_ret.x = x_b - s_max*cos(theta)
-        if y_delta > 0:
-            pos_ret.y = y_b + s_max*sin(theta)
-        elif y_delta < 0:
-            pos_ret.y = y_b - s_max*sin(theta)
-        pos_ret.z = z_ref
-
-        # pos_ret.x = s_max*cos(theta)
-        # pos_ret.y = s_max*sin(theta)
-        # pos_ret.z = z_ref
+def point_msg_reject_outliers_xAxis(point_arr, m = 2.):
+# take an array of ros points and reject outlier points in specified axis
+    # create a list collecting [Point, data]
+    if point_arr != []:
+        p_arr = [[p.x, p] for p in point_arr]
+        p_arr = sorted(p_arr, key=lambda x: x[0])
+        p_arr_raw = [p_arr[j][1] for j in range(len(p_arr))]
+        p_arr_ret = []
+        med = (p_arr[int(len(p_arr)/2)])[0]
+        p_arr = [[abs(p_arr[i][0] - med), p_arr[i][1]] for i in range(len(p_arr))]
+        p_arr = sorted(p_arr, key=lambda x: x[0])
+        mdev = p_arr[int(len(p_arr)/2)][0]
+        for i in range(len(p_arr)):
+            p_arr[i][0] = p_arr[i][0]/mdev if mdev else 0
+        for i in range(len(p_arr)):
+            if p_arr[i][0] < m:
+                p_arr_ret.append(p_arr_raw[i])
+        return p_arr_ret
+    else :
+        print "Error in point_msg_reject_outliers_1axis function : Input is null set, [] will be returned"
         
-        max_s_list[i] = pos_ret
-        print "(This loop) fin_x:", pos_ret.x, "fin_y:", pos_ret.y
-    
-
-    sum_val_x = 0
-    sum_val_y = 0
-    for i in range(len(max_s_list)):
-        sum_val_x =+ max_s_list[i].x
-        sum_val_y =+ max_s_list[i].y
-    ret_pos.point.x = sum_val_x/len(max_s_list)
-    ret_pos.point.y = sum_val_y/len(max_s_list)
-    ret_pos.point.z = z_ref
-    return ret_pos
-    
-
-
-####################
-# AVERAGING RADIUS #
-####################
-
-# def ball_pointcloud_filter(data, radius) : 
-# # return a matrix with those valuse close to the ball
-
+def point_msg_avg(point_arr):
+    count = len(point_arr)
+    x_total = sum([ p.x for p in point_arr])
+    y_total = sum([ p.y for p in point_arr])
+    z_total = sum([ p.z for p in point_arr])
+    return Point(x_total/count, y_total/count, z_total/count)
 
 ######################
 # POINTCLOUD FILTERS #
@@ -262,7 +112,6 @@ def projectile_calc_ver1(pos, z_ref):
 
 def reject_outliers(data, m = 2.):
 # take matrix and return the one with no outliers
-    # print 'in reject outlier'
     if data != []:
         data = sorted(data)
         data_raw = list(data)
@@ -279,7 +128,7 @@ def reject_outliers(data, m = 2.):
                 dat_ret.append(data_raw[i])
         return dat_ret
     else :
-        print "Error in mean function : Input is null set, [] will be returned"
+        print "Error in reject_outliers function : Input is null set, [] will be returned"
         return []
 
 
