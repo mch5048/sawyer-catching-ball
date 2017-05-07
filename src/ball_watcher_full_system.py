@@ -33,6 +33,7 @@ import intera_interface
 import numpy as np
 import threading
 from urdf_parser_py.urdf import URDF
+import copy
 # import matplotlib.pyplot as plt
 
 #################
@@ -42,6 +43,7 @@ import kbhit
 import sawyer_catch_ball_calc as sawyer_calc
 import sawyer_catch_ball_markers as sawyer_mk
 from ik_controller_full_system import IKController
+from detect_color_full_system import Obj3DDetector
 
 # GLOBAL VARS
 BASE = "base"
@@ -74,6 +76,8 @@ class BallWatcher(object):
         rospy.loginfo("Creating BallWatcher class")
         self.print_help()
 
+        self.objDetector = Obj3DDetector()
+
         # flags and vars
         # for ball dropping position
         self.kinect_calibrate_flag = False
@@ -82,9 +86,9 @@ class BallWatcher(object):
         self.ball_marker = sawyer_mk.MarkerDrawer("/base", "ball", 500)
         self.drop_point = Point()
         self.drop_point_arr = []
+        self.pos_rec_list = np.array([])
         self.drop_point_marker = sawyer_mk.MarkerDrawer("/base", "dropping_ball", 500)
         self.ik_cont = IKController()
-
         self.robot = URDF.from_parameter_server()  
         self.kin = KDLKinematics(self.robot, BASE, EE_FRAME)
         self.limb_interface = intera_interface.Limb()
@@ -93,6 +97,13 @@ class BallWatcher(object):
         self.last_tf_time = rospy.Time()
         self.tf_listener = tf.TransformListener()
         self.tf_bc = tf.TransformBroadcaster()
+
+
+        self.tf_listener.waitForTransform("base", "camera_link", rospy.Time(), rospy.Duration(0.5))
+        self.T_sc_p, self.T_sc_q = self.tf_listener.lookupTransform("base", "camera_link", rospy.Time())
+        self.T_sc = tr.euler_matrix(*tr.euler_from_quaternion(self.T_sc_q))
+        self.T_sc[0:3,-1] = self.T_sc_p
+
 
         # kbhit instance
         self.kb = kbhit.KBHit()
@@ -129,19 +140,41 @@ class BallWatcher(object):
     def tf_update_cb(self, tdat):
         # update ball position in real time
         # Filter ball outside x = 0 - 3.0m relative to base out
-        try:
-            self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(0.5))
-        except tf.Exception:
-            rospy.loginfo("No frame of /ball from /base received, stop calculation. self.start_calc_flag = False")
-        p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
+        self.p_cb = self.objDetector.p_ball_to_cam
+        # print self.p_cb
+        if (self.p_cb == []):
+            # print "Please wait, the system is detecting the ball"
+            return
+        
+        # try:
+        #     self.tf_listener.waitForTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time(), rospy.Duration(0.5))
+        # except tf.Exception:
+        #     rospy.loginfo("No frame of /ball from /base received, stop calculation. self.start_calc_flag = False")
+        # p, q = self.tf_listener.lookupTransform(TARGET_FRAME, SOURCE_FRAME, rospy.Time())
+
+
+        # change to subscribe lookuptf directly and multiply directly
+        # P_cb = copy.deepcopy(self.objDetector.p_ball_to_cam)
+        P_cb = np.array([self.objDetector.p_ball_to_cam[0], self.objDetector.p_ball_to_cam[1], self.objDetector.p_ball_to_cam[2], self.objDetector.p_ball_to_cam[3]])
+        timestamp = P_cb[3]
+        P_cb[3] = 1
+        P_cb = P_cb.reshape((4,1))
+        p_sb = np.dot(self.T_sc, P_cb)
+        self.tf_bc.sendTransform((p_sb[0][0],p_sb[1][0],p_sb[2][0]), [0,0,0,1], rospy.Time.now(), "ball", "base")
+
         pos = PointStamped()
-        # pos.header.stamp = rospy.get_time()
-        pos.header.stamp = rospy.Time.now()
-        pos.point.x  = p[0]
-        pos.point.y  = p[1]
-        pos.point.z  = p[2]
+        pos.header.stamp = timestamp
+        # pos.point.x  = p[0]
+        # pos.point.y  = p[1]
+        # pos.point.z  = p[2]
+        # print "1: ", p_sb[0][0]
+        # print "2: ", p_sb[1][0]
+        # print "3: ", p_sb[2][0]
+        pos.point.x  = p_sb[0][0]
+        pos.point.y  = p_sb[1][0]
+        pos.point.z  = p_sb[2][0]
         # filter repeated received tf out
-        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x):
+        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5):
             self.roll_mat(self.pos_rec)
             self.pos_rec[-1] = pos
         # choose only a non-repeated pos_rec by comparing between the timestamped of the present and past pos_rec
@@ -161,13 +194,16 @@ class BallWatcher(object):
                     # draw markers
                     self.ball_marker.draw_spheres([0.7, 0, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
                     self.ball_marker.draw_line_strips([1, 0.27, 0.27,1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
-                    self.ball_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.pos_rec[0].point, 0.03)
+                    self.ball_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.pos_rec[0].point, 0.03)                
                     # calculate the dropping position based on 2 points
-                    self.drop_point = sawyer_calc.projectile_calc(self.pos_rec[0], self.pos_rec[1], Z_CENTER)
-                    # self.drop_point = sawyer_calc.projectile_calc(self.pos_rec[0], self.pos_rec[1], 0.00)
-                    self.drop_point_arr.append(self.drop_point)
-                    self.drop_point_arr = sawyer_calc.point_msg_reject_outliers_xAxis(self.drop_point_arr, 1.5)
-                    self.drop_point = sawyer_calc.point_msg_avg(self.drop_point_arr)
+                    print "##########"
+                    print "pos_rec_listB4: ", self.pos_rec_list
+                    self.pos_rec_list = np.append(self.pos_rec_list, self.pos_rec[0])
+                    # self.pos_rec_list = (self.pos_rec_list).append(self.pos_rec[0])
+                    print "pos_rec_list: ", self.pos_rec_list
+                    print "##########"
+                    self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
+
                     # average drop point
                     input_posestamped = PoseStamped()
                     input_posestamped.pose.position = self.drop_point
@@ -175,7 +211,6 @@ class BallWatcher(object):
                     self.ik_cont.set_goal_from_pose(input_posestamped)
                     self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                     self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
-                    # self.drop_point_marker.draw_line_strips([0, 1, 1,1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
             self.last_tf_time = self.pos_rec[0].header.stamp
 
 
@@ -193,6 +228,8 @@ class BallWatcher(object):
                 self.running_flag = not self.running_flag
                 if not self.running_flag:
                     self.ball_marker.delete_all_mks()
+                    self.pos_rec_list = []
+                    self.ik_cont.running_flag = False
             elif c == 'c':
                 rospy.loginfo("You pressed 'c', Start calibration\nrunning_flag = False")
                 self.running_flag = False

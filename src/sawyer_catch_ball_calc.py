@@ -1,6 +1,8 @@
 import numpy as np
 from math import cos, sin, radians, sqrt, atan2, atan, tan
 from geometry_msgs.msg import Point, PointStamped
+from scipy.optimize import leastsq, minimize
+
 
 
 g = 9.81
@@ -30,8 +32,9 @@ M = np.array([[0., 0., 1., 1.0155],
 def projectile_calc(pointstamped_0, pointstamped_1, z_ref):
     p0 = pointstamped_0.point
     p1 = pointstamped_1.point
-    t0 = pointstamped_0.header.stamp.secs + pointstamped_0.header.stamp.nsecs*(10**(-9))
-    t1 = pointstamped_1.header.stamp.secs + pointstamped_1.header.stamp.nsecs*(10**(-9))
+    t0 = pointstamped_0.header.stamp
+    t1 = pointstamped_1.header.stamp
+
 
     dt = t1 - t0
 
@@ -74,12 +77,94 @@ def projectile_calc(pointstamped_0, pointstamped_1, z_ref):
 
     return point_ret
 
+def f_proj(lis, t):
+# tpl(Xo, Yo, Zo, Vo, alpha,  theta)
+   return np.array([lis[0] + lis[3]*cos(lis[4])*cos(lis[5])*t \
+                    ,lis[1] + lis[3]*sin(lis[4])*cos(lis[5])*t \
+                    ,lis[2] + lis[3]*sin(lis[5])*t - 9.81/2*(t**2)])
+
+def opt_min_proj_calc(ps_list, z_ref):
+    list_init = np.zeros(6)
+    # print "\r\n"
+    # print "tmin: ", ps_list[0].header.stamp
+    tmin = ps_list[0].header.stamp
+    # print "tminMod: ", tmin
+    # print "\r\n"
+    # ps_list_T = ps_list[i].header.stamp.secs + (10**-9)*ps_list[i].header.stamp.nsecs
+    cost_func=lambda ls: sum([np.linalg.norm(f_proj(ls, (ps_list[i].header.stamp-tmin)) - np.array([ps_list[i].point.x, ps_list[i].point.y, ps_list[i].point.z])) for i in range(ps_list.shape[0])])
+    result = minimize(cost_func, list_init)
+    # coeff = np.array([-9.81/2, result.x[5], result.x[2] - z_ref])
+    coeff = np.array([-9.81/2, result.x[3]*sin(result.x[5]), result.x[2] - z_ref])
+    tFin = np.amax(np.roots(coeff))
+    Fin = f_proj(result.x, tFin)
+    # print "tFin: ", tFin
+    # print "t: ", np.roots(coeff)
+    # print "\r\n"
+    # print "Fin: ", Fin
+    point_ret = Point()
+    point_ret.x = Fin[0]
+    point_ret.y = Fin[1]
+    point_ret.z = Fin[2]
+    return point_ret
+
+def least_square_proj_calc(psList, z_ref):
+    
+    print "####Check ps list####"
+    print "psList: ", psList
+    print "#######"
+
+    xList = np.array([a.point.x for a in psList])
+    yList = np.array([a.point.y for a in psList])
+    zList = np.array([a.point.z for a in psList])    
+
+    # here, create lambda functions for Line, Quadratic fit
+    # tpl is a tuple that contains the parameters of the fit
+    funcQuad_xz=lambda tpl,x : tpl[0]*x**2+tpl[1]*x+tpl[2]
+    ErrorFunc_xz=lambda tpl,x,z: funcQuad_xz(tpl,x)-z
+    tplInitialxz=(1.0,2.0,3.0)
+    tplFinalxz,success=leastsq(ErrorFunc_xz,tplInitialxz[:],args=(xList,zList))
+    
+    funcQuad_yz=lambda tpl,y : tpl[0]*y**2+tpl[1]*y+tpl[2]
+    ErrorFunc_yz=lambda tpl,y,z: funcQuad_yz(tpl,y)-z
+    tplInitialyz=(1.0,2.0,3.0)
+    tplFinalyz,success=leastsq(ErrorFunc_yz,tplInitialyz[:],args=(yList,zList))
+    
+    xx1=np.linspace(xList.min(),xList.max(),50)
+    yy1=np.linspace(yList.min(),yList.max(),50)
+    zz1=funcQuad_xz(tplFinalxz,xx1)
+    zz2=funcQuad_yz(tplFinalyz,yy1)
+    #------------------------------------------------
+    # now the quadratic fit
+    #-------------------------------------------------
+    a = tplFinalxz[0]
+    b = tplFinalxz[1]
+    c = tplFinalxz[2] - z_ref
+   
+    xList = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]  
+
+    a = tplFinalyz[0]
+    b = tplFinalyz[1]
+    c = tplFinalyz[2] - z_ref
+
+    yList = [(-b + sqrt(b**2 - 4*a*c))/(2*a), (-b - sqrt(b**2 - 4*a*c))/(2*a)]  
+
+    xFin = min(xList)
+    yFin = min(yList)
+
+    point_ret = Point()
+    point_ret.x = xFin
+    point_ret.y = yFin
+    point_ret.z = zFin
+
+    return point_ret
+
+
 ###################
 # ROS MSG FILTERS #
 ###################
 
 def point_msg_reject_outliers_xAxis(point_arr, m = 2.):
-# take an array of ros points and reject outlier points in specified axis
+    # take an array of ros points and reject outlier points in specified axis
     # create a list collecting [Point, data]
     if point_arr != []:
         p_arr = [[p.x, p] for p in point_arr]
@@ -111,7 +196,7 @@ def point_msg_avg(point_arr):
 ######################
 
 def reject_outliers(data, m = 2.):
-# take matrix and return the one with no outliers
+    # take matrix and return the one with no outliers
     if data != []:
         data = sorted(data)
         data_raw = list(data)
@@ -131,6 +216,10 @@ def reject_outliers(data, m = 2.):
         print "Error in reject_outliers function : Input is null set, [] will be returned"
         return []
 
+def reject_outliers_1(data, m=2.):
+    mu = np.mean(data)
+    sigma = np.std(data)
+    return within_1(data, mu-sigma, mu+sigma)
 
 
 def mean(data):
@@ -156,8 +245,10 @@ def within_range_filter(data, min_range, max_range):
     return dat_ret
 
 
+def within_1(data, min_range, max_range):
+    return [x for x in data if x < max_range and x >= min_range]
 
-
+    
 def filter_nan(data):
 # filter NaN data in matrix
     # print "data in filternan:", data
@@ -165,12 +256,12 @@ def filter_nan(data):
     dat_ret = []
     for i in range(data_len):
         if not np.isnan(data[i]):
-        #     np.append(dat_ret, data[i])
-            dat_ret.append(data[i])
+            # np.append(dat_ret, data[i])
+            dat_ret.append(data[i])            
     return dat_ret
-         
 
-
+def filter_nan_1(data):
+    return data[np.logical_not(np.isnan(data))]
 
 def is_within_range(num, low, high):
 # check if the number is within specified range or not

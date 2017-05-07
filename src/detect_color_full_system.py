@@ -95,6 +95,8 @@ class Obj3DDetector(object):
         self.use_kb = False
         #self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
         self.ball_radius = 0
+        self.p_ball_to_cam = []
+        self.bridge = CvBridge()
 
         # Get and set params
         self.get_and_set_params()
@@ -143,68 +145,101 @@ class Obj3DDetector(object):
 
 
     def depth_cb(self, depth_img):
+        tfirst = time.time()
         x = self.tracked_pixel.x
         y = self.tracked_pixel.y
         
-        bridge = CvBridge()
-        d_img = bridge.imgmsg_to_cv2(depth_img)
+        d_img = self.bridge.imgmsg_to_cv2(depth_img)
         d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
 
-
-            # rec_coord = Point()
-            # rec_coord.x = x
-            # rec_coord.y = y
-            # rec_coord.z = self.ball_radius
-            # self.ball_pixel_tsync_pub.publish(rec_coord)
+        # rec_coord = Point()
+        # rec_coord.x = x
+        # rec_coord.y = y
+        # rec_coord.z = self.ball_radius
+        # self.ball_pixel_tsync_pub.publish(rec_coord)
         depth = d_img[y][x]
-        depth_rand_array = []
-        try:
-            for i in range(-self.ball_radius,self.ball_radius):   ##0.00113sec
-                for j in range(-self.ball_radius,self.ball_radius):
-                    x_rand = x + i
-                    y_rand = y + j
-                    depth_rand_array.append(d_img[y_rand][x_rand])
-            depth_rand_array = sawyer_calc.filter_nan(depth_rand_array) ## 0.002-0.0047sec
-            # time_st = rospy.get_time()
-            depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX)
-            ##0.006-0.01
-            depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
-            # time_try = rospy.get_time()-time_st
-            # print time_try
-            depth = sawyer_calc.mean(depth_rand_array)
- 
-            norm_v = self.ph_model.projectPixelTo3dRay((x,y))
+        # depth_rand_array = []
 
-            scale = depth*1.0 / norm_v[2]
-            pos = Point()
-            pos_in_space = [z * scale for z in norm_v]
-            pos.x = pos_in_space[0]
-            pos.y = pos_in_space[1]
-            pos.z = pos_in_space[2]
-            if not np.isnan(depth):
-                #print 'z: ', pos.z, ' x: ', pos.x,' y: ', pos.y
-                # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
-                if scale != 0:
-                    self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
-        except IndexError:
-            pass
+        tstart = time.time()
+        # for i in range(-self.ball_radius,self.ball_radius):   ##0.00113sec
+        #     for j in range(-self.ball_radius,self.ball_radius):
+        #         if ((x+i) < d_img.shape[1]) and \
+        #            ((y+j) < d_img.shape[0]) and \
+        #            ((x+i) > 0) and \
+        #            ((y+j) > 0):
+        #             x_rand = x + i
+        #             y_rand = y + j
+        #             depth_rand_array.append(d_img[y_rand][x_rand])
+        rad = int(0.5*self.ball_radius)
+        xlim = np.clip([x-rad, x+rad], 0, d_img.shape[1])
+        ylim = np.clip([y-rad, y+rad], 0, d_img.shape[0])
+        depth_rand_array = d_img[ylim[0]:ylim[1], xlim[0]:xlim[1]].ravel()
+        # depth_rand_array = np.array(depth_rand_array)
+        # print "=================================================="
+        # print "Double for loop time = ",(time.time() - tstart)*1000, "data length = ", len(depth_rand_array)
+        tstart = time.time()
+        # depth_rand_array = sawyer_calc.filter_nan(depth_rand_array) ## 0.002-0.0047sec
+        depth_rand_array = sawyer_calc.filter_nan_1(depth_rand_array) ## 0.002-0.0047sec
+        # print "filter nan time = ",(time.time() - tstart)*1000, "data length = ", len(depth_rand_array)
+        tstart = time.time()
+        # depth_rand_array = sawyer_calc.within_range_filter(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX) ##0.006-0.01
+        # depth_rand_array = sawyer_calc.within_1(depth_rand_array, WITHIN_RAN_MIN, WITHIN_RAN_MAX) ##0.006-0.01
+        # print "within range time = ",(time.time() - tstart)*1000, "data length = ", len(depth_rand_array)
+        tstart = time.time()
+        # depth_rand_array = sawyer_calc.reject_outliers(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+        depth_rand_array = sawyer_calc.reject_outliers_1(depth_rand_array, OUTLIER_FILT_NUM) # reject outliers that seems to return very far depth
+        # print "reject outliers time = ",(time.time() - tstart)*1000, "data length = ", len(depth_rand_array)
+        tstart = time.time()
+        # depth = sawyer_calc.mean(depth_rand_array)
+        depth = np.mean(depth_rand_array)
+        # print "calculate mean time = ",(time.time() - tstart)*1000
+        # print "TOTAL TIME = ",(time.time() - tfirst)*1000
+        # print "=================================================="
+        # print "\r\n"
 
-    def specific_color_filter(self, img_hsv, img_raw):
+        if (time.time() - tfirst)*1000 > 15: print "TOTAL TIME = ",(time.time() - tfirst)*1000
+        
+        norm_v = self.ph_model.projectPixelTo3dRay((x,y))
 
+        scale = depth*1.0 / norm_v[2]
+        pos = Point()
+        pos_in_space = [z * scale for z in norm_v]
+        pos.x = pos_in_space[0]
+        pos.y = pos_in_space[1]
+        pos.z = pos_in_space[2]
+        if not np.isnan(depth):
+            #print 'z: ', pos.z, ' x: ', pos.x,' y: ', pos.y
+            # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
+            if scale != 0:
+                t_stamp = depth_img.header.stamp.secs + (depth_img.header.stamp.nsecs)*(10**(-9))
+                # print t_stamp
+                self.p_ball_to_cam = np.array([pos.z,-pos.x,-pos.y, t_stamp])
+                # print self.p_ball_to_cam.dtype
+                # print "self.p_call_to_cam: ", self.p_ball_to_cam
+                # self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
 
+        # except IndexError:
+        #     pass
+
+    def specific_color_filter(self, img_raw):
         # change black color to white color since green detection always detect black color too
-        try:
-            b = self.trackbar.get_vals()[8:14]
-            v = self.trackbar.get_vals()[0:6]
-            e = self.trackbar.get_vals()[6:8]
-        except AttributeError:
-            b = GREEN_TB_DEFAULTS[8:14]
-            v = GREEN_TB_DEFAULTS[0:6]
-            e = GREEN_TB_DEFAULTS[6:8]
+        # try:
+        #     b = self.trackbar.get_vals()[8:14]
+        #     v = self.trackbar.get_vals()[0:6]
+        #     e = self.trackbar.get_vals()[6:8]
+        # except AttributeError:
+        #     b = GREEN_TB_DEFAULTS[8:14]
+        #     v = GREEN_TB_DEFAULTS[0:6]
+        #     e = GREEN_TB_DEFAULTS[6:8]
+        
+        b = GREEN_TB_DEFAULTS[8:14]
+        v = GREEN_TB_DEFAULTS[0:6]
+        e = GREEN_TB_DEFAULTS[6:8]
+
         black_lo = np.array([b[0], b[1], b[2]])
         black_hi = np.array([b[3], b[4], b[5]])
-        im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
-        im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
+        im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #th mask that cut the black portion out
+        # im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
         # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
         # im_b_to_w = cv2.bitwise_not(im_b_to_w) # the mask that cut black portion out
 
@@ -264,29 +299,27 @@ class Obj3DDetector(object):
         # red = cv2.morphologyEx(red, cv2.MORPH_CLOSE, kernel)
         # red = cv2.bitwise_and(img_raw, img_raw)
         tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_total)
-        # return tracked_color_im, list(center)
-        try:
-            return tracked_color_im, list(center)
-        except TypeError:
-            # print("Warning : detect_color_full_system.py : line 159 : No object found!! ")
-            pass
+        return tracked_color_im, list(center)
+        # try:
+        #     return tracked_color_im, list(center)
+        # except TypeError:
+        #     print("Warning : detect_color_full_system.py : line 159 : No object found!! ")
+        #     pass
 
     def image_cb(self, ros_img):
         #call the function from CvBridge
-        bridge = CvBridge()
-        cv_image = bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+        cv_image = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
         # img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
         # img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)         
         # img_red, coords = self.specific_color_filter(img_hsv, cv_image)
         try:
-            img_detect_color, coords = self.specific_color_filter(cv_image, cv_image)
-            # self.bag_rgb_im = bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
+            img_detect_color, coords = self.specific_color_filter(cv_image)
             cv2.imshow('image_raw', cv_image)
             cv2.waitKey(1)
             self.tracked_pixel.x = coords[0]
-            self.tracked_pixel.y = coords[1] 
+            self.tracked_pixel.y = coords[1]
         except TypeError, UnboundLocalError:
-            # print("Warning : detect_color_full_system.py : line 172 : No object found!! ")
+            print("Warning : detect_color_full_system.py : line 172 : No object found!! ")
             pass
 
     def keycb(self, tdat):
