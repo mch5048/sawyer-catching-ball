@@ -93,10 +93,11 @@ class Obj3DDetector(object):
         self.ph_model = image_geometry.PinholeCameraModel()
         self.tracked_pixel = Point()
         self.use_kb = False
-        #self.trackbar = self.window_with_trackbars('image_tb', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
         self.ball_radius = 0
         self.p_ball_to_cam = []
         self.bridge = CvBridge()
+        
+        self.tb_val = self.window_with_trackbars('image_red', GREEN_TB_DEFAULTS, GREEN_TB_HIGHS)
 
         # Get and set params
         self.get_and_set_params()
@@ -119,26 +120,15 @@ class Obj3DDetector(object):
         self.kb_timer = rospy.Timer(rospy.Duration(0.1), self.keycb)
         self.start_time = 0
         self.tf_br = tf.TransformBroadcaster()
-        # publishers for rosbag
-        # self.rgb_img_tsync_pub = rospy.Publisher('time_sync_rgb_img', Image, queue_size = 10)
-        # self.depth_img_tsync_pub = rospy.Publisher('time_sync_depth_img', Image, queue_size = 10)
-        # self.ball_pixel_tsync_pub = rospy.Publisher('time_sync_ball_pixel_img', Point, queue_size = 10)
-
-
 
     def time_sync_img_cb(self, rgb_img, depth_img):
         # rgb image process
-        self.image_cb(rgb_img)
+        self.color_track(rgb_img)
         self.depth_cb(depth_img)
-        # self.rgb_img_tsync_pub.publish(self.bag_rgb_im)
-        # self.depth_img_tsync_pub.publish(depth_img)
-
 
 
     def get_and_set_params(self):
         self.use_kb = rospy.get_param("kb",False)
-
-
 
     def update_model_cb(self, info):
         self.ph_model.fromCameraInfo(info)
@@ -147,19 +137,10 @@ class Obj3DDetector(object):
     def depth_cb(self, depth_img):
         tfirst = time.time()
         x = self.tracked_pixel.x
-        y = self.tracked_pixel.y
-        
+        y = self.tracked_pixel.y        
         d_img = self.bridge.imgmsg_to_cv2(depth_img)
         d_img = cv2.resize(d_img, (0,0), fx=2, fy=2)
-
-        # rec_coord = Point()
-        # rec_coord.x = x
-        # rec_coord.y = y
-        # rec_coord.z = self.ball_radius
-        # self.ball_pixel_tsync_pub.publish(rec_coord)
         depth = d_img[y][x]
-        # depth_rand_array = []
-
         tstart = time.time()
         # for i in range(-self.ball_radius,self.ball_radius):   ##0.00113sec
         #     for j in range(-self.ball_radius,self.ball_radius):
@@ -208,83 +189,108 @@ class Obj3DDetector(object):
         pos.y = pos_in_space[1]
         pos.z = pos_in_space[2]
         if not np.isnan(depth):
-            #print 'z: ', pos.z, ' x: ', pos.x,' y: ', pos.y
             # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
             if scale != 0:
                 t_stamp = depth_img.header.stamp.secs + (depth_img.header.stamp.nsecs)*(10**(-9))
-                # print t_stamp
                 self.p_ball_to_cam = np.array([pos.z,-pos.x,-pos.y, t_stamp])
-                # print self.p_ball_to_cam.dtype
-                # print "self.p_call_to_cam: ", self.p_ball_to_cam
-                # self.tf_br.sendTransform((pos.z,-pos.x,-pos.y), [0,0,0,1], rospy.Time.now(), "ball", "camera_link")
+
 
         # except IndexError:
         #     pass
 
-    def specific_color_filter(self, img_raw):
-        # change black color to white color since green detection always detect black color too
+    # def specific_color_filter(self, img_raw):
+    #     b = GREEN_TB_DEFAULTS[8:14]
+    #     v = GREEN_TB_DEFAULTS[0:6]
+    #     e = GREEN_TB_DEFAULTS[6:8]
+    #     black_lo = np.array([b[0], b[1], b[2]])
+    #     black_hi = np.array([b[3], b[4], b[5]])
+    #     im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
+    #     im_b_to_w_color = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
+    #     img_blur = cv2.GaussianBlur(im_b_to_w_color, (9,9), 1)
+    #     img_hsv = cv2.cvtColor(im_b_to_w_color, cv2.COLOR_BGR2HSV)   
+    #     # low and high band for detecting red color in hsv which spans at each end of h-band
+    #     low_vals_lo = np.array([v[0], v[1], v[2]])
+    #     high_vals_lo = np.array([v[3], v[4], v[5]])
+    #     im_total = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
+    #     kernel_erode = np.ones((e[0],e[0]),np.uint8)
+    #     kernel_dilate = np.ones((e[1],e[1]),np.uint8)
+    #     im_total = cv2.erode(im_total, kernel_erode, iterations=2)
+    #     im_total = cv2.dilate(im_total, kernel_dilate, iterations=2)
+    #     cv2.imshow('image_', im_total)
+    #     cv2.waitKey(1)
+    #     imContours = cv2.findContours(im_total.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+    #     center = None
+    #     # only proceed if at least one contour was found
+    #     if len(imContours) > 0:
+    #         # find the largest contour in the mask, then use it to compute the minimum enclosing circle and centroid
+    #         c = max(imContours, key=cv2.contourArea)
+    #         ((x, y), radius) = cv2.minEnclosingCircle(c)
+    #         M = cv2.moments(c)
+    #         center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+    #         # only proceed if the radius meets a minimum size
+    #         if radius > 10:
+    #             # draw the circle and centroid on the frame,
+    #             # then update the list of tracked points
+    #             cv2.circle(img_raw, (int(x), int(y)), int(radius),(0, 255, 255), 2)
+    #             cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
+    #             self.ball_radius = int(radius)
+    #     tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_total)
+    #     return tracked_color_im, list(center)
+            
         # try:
-        #     b = self.trackbar.get_vals()[8:14]
-        #     v = self.trackbar.get_vals()[0:6]
-        #     e = self.trackbar.get_vals()[6:8]
-        # except AttributeError:
-        #     b = GREEN_TB_DEFAULTS[8:14]
-        #     v = GREEN_TB_DEFAULTS[0:6]
-        #     e = GREEN_TB_DEFAULTS[6:8]
-        
-        b = GREEN_TB_DEFAULTS[8:14]
-        v = GREEN_TB_DEFAULTS[0:6]
-        e = GREEN_TB_DEFAULTS[6:8]
+        #     return tracked_color_im, list(center)
+        # except TypeError:
+        #     print("Warning : detect_color_full_system.py : line 159 : No object found!! ")
+        #     pass
 
+    def color_track(self, ros_img):
+        # cv_image = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+        img_raw = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+
+        vals = self.tb_val.get_vals()
+        # b = GREEN_TB_DEFAULTS[8:14]
+        # v = GREEN_TB_DEFAULTS[0:6]
+        # e = GREEN_TB_DEFAULTS[6:8]
+        b = vals[8:14]
+        v = vals[0:6]
+        e = vals[6:8]
         black_lo = np.array([b[0], b[1], b[2]])
         black_hi = np.array([b[3], b[4], b[5]])
-        im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #th mask that cut the black portion out
-        # im_b_to_w = cv2.inRange(img_hsv, black_lo, black_hi) #th mask that cut the black portion out
-        # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
-        # im_b_to_w = cv2.bitwise_not(im_b_to_w) # the mask that cut black portion out
-
-        b_to_w_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
-        # img_blur = cv2.GaussianBlur(b_to_w_color_im, (9,9), 1)
-        img_hsv = cv2.cvtColor(b_to_w_color_im, cv2.COLOR_BGR2HSV)   
-
-
-        # v = self.trackbar.get_vals()[0:12]
-        # v = self.trackbar.get_vals()[0:6]
-
-            
-        # v = GREEN_TB_DEFAULTS[0:12]
+        im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
+        im_b_to_w_color = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
+        cv2.imshow('image_b_to_w_color', im_b_to_w_color)
+        cv2.waitKey(1) 
+        img_blur = cv2.GaussianBlur(im_b_to_w_color, (9,9), 1)
+        cv2.imshow('image_blur', img_blur)
+        cv2.waitKey(1) 
+        img_hsv = cv2.cvtColor(im_b_to_w_color, cv2.COLOR_BGR2HSV)  
+        cv2.imshow('image_hsv', img_hsv)
+        cv2.waitKey(1) 
         # low and high band for detecting red color in hsv which spans at each end of h-band
         low_vals_lo = np.array([v[0], v[1], v[2]])
         high_vals_lo = np.array([v[3], v[4], v[5]])
-        # low_vals_hi = np.array([v[6], v[7], v[8]])
-        # high_vals_hi = np.array([v[9], v[10], v[11]])
-        im_lo = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
-        # im_hi = cv2.inRange(img_hsv, low_vals_hi, high_vals_hi)
-        # im_total = im_lo + im_hi
-        im_total = im_lo
-        # erode noisy details and dilate those left
-        # e = self.trackbar.get_vals()[12:14]
-        # e = GREEN_TB_DEFAULTS[12:14]
-        # e = self.trackbar.get_vals()[12:14]
-        # e = self.trackbar.get_vals()[6:8]
-        # kernel_erode = np.ones((4,4),np.uint8)
-        # kernel_dilate = np.ones((7,7),np.uint8)
+        im_hsv_ir = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
+        cv2.imshow('image_hsv_ir', im_hsv_ir)
+        cv2.waitKey(1)        
         kernel_erode = np.ones((e[0],e[0]),np.uint8)
         kernel_dilate = np.ones((e[1],e[1]),np.uint8)
-        im_total = cv2.erode(im_total, kernel_erode, iterations=2)
-        im_total = cv2.dilate(im_total, kernel_dilate, iterations=2)
-        imContours = cv2.findContours(im_total.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+        im_erode = cv2.erode(im_hsv_ir, kernel_erode, iterations=2)
+        cv2.imshow('image_erode', im_erode)
+        cv2.waitKey(1)   
+        im_dilate = cv2.dilate(im_erode, kernel_dilate, iterations=2)  
+        cv2.imshow('image_dilate', im_dilate)
+        cv2.waitKey(1)   
+        # img_detect_color, coords = self.specific_color_filter(cv_image)
+        # imContours = cv2.findContours(im_total.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+        imContours = cv2.findContours(im_dilate, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
         center = None
         # only proceed if at least one contour was found
         if len(imContours) > 0:
-            # find the largest contour in the mask, then use
-            # it to compute the minimum enclosing circle and
-            # centroid
+            # find the largest contour in the mask, then use it to compute the minimum enclosing circle and centroid
             c = max(imContours, key=cv2.contourArea)
             ((x, y), radius) = cv2.minEnclosingCircle(c)
             M = cv2.moments(c)
             center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
- 
             # only proceed if the radius meets a minimum size
             if radius > 10:
                 # draw the circle and centroid on the frame,
@@ -292,35 +298,16 @@ class Obj3DDetector(object):
                 cv2.circle(img_raw, (int(x), int(y)), int(radius),(0, 255, 255), 2)
                 cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
                 self.ball_radius = int(radius)
-        # red.appendleft(center)
-        # n = 2
-        # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(n,n))
-        # red = cv2.morphologyEx(red, cv2.MORPH_OPEN, kernel)
-        # red = cv2.morphologyEx(red, cv2.MORPH_CLOSE, kernel)
-        # red = cv2.bitwise_and(img_raw, img_raw)
-        tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_total)
-        return tracked_color_im, list(center)
-        # try:
-        #     return tracked_color_im, list(center)
-        # except TypeError:
-        #     print("Warning : detect_color_full_system.py : line 159 : No object found!! ")
-        #     pass
+        tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_dilate)
+        coords = list(center)
+        cv2.imshow('image_final', tracked_color_im)
+        cv2.waitKey(1)
+        self.tracked_pixel.x = coords[0]
+        self.tracked_pixel.y = coords[1]
 
-    def image_cb(self, ros_img):
-        #call the function from CvBridge
-        cv_image = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
-        # img_blur = cv2.GaussianBlur(cv_image, (9,9), 1)
-        # img_hsv = cv2.cvtColor(img_blur, cv2.COLOR_BGR2HSV)         
-        # img_red, coords = self.specific_color_filter(img_hsv, cv_image)
-        try:
-            img_detect_color, coords = self.specific_color_filter(cv_image)
-            cv2.imshow('image_raw', cv_image)
-            cv2.waitKey(1)
-            self.tracked_pixel.x = coords[0]
-            self.tracked_pixel.y = coords[1]
-        except TypeError, UnboundLocalError:
-            print("Warning : detect_color_full_system.py : line 172 : No object found!! ")
-            pass
+
+
+
 
     def keycb(self, tdat):
         # check if there was a key pressed, and if so, check it's value and
