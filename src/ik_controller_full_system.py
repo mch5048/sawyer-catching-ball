@@ -150,7 +150,7 @@ class IKController( object ):
     # perform step inverse kinematics if running_flag is true
         if self.running_flag:
             self.step_ik()
-            # self.limb_interface.set_joint_velocities(self.qdot_dict)
+            self.limb_interface.set_joint_velocities(self.qdot_dict)
             # print self.qdot_dict
         #     # publish joint command timeout
         #     self.joint_cmd_timeout_pub.publish(JOINT_CMD_FREQ)

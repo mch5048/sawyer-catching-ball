@@ -129,7 +129,8 @@ class BallWatcher(object):
         x_present = self.pos_rec[1].point.x
         if (x_present - x_past > 0):
             self.start_calc_flag = False
-
+            self.pos_rec_list = np.array([])
+            # print "test"
     def roll_mat(self, mat):
         row_num = len(mat)
         for i in range(0,row_num - 1):
@@ -174,7 +175,7 @@ class BallWatcher(object):
         pos.point.y  = p_sb[1][0]
         pos.point.z  = p_sb[2][0]
         # filter repeated received tf out
-        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5):
+        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5) and (pos.point.x - self.pos_rec[-1].point.x < 1.2):
             self.roll_mat(self.pos_rec)
             self.pos_rec[-1] = pos
         # choose only a non-repeated pos_rec by comparing between the timestamped of the present and past pos_rec
@@ -188,7 +189,6 @@ class BallWatcher(object):
                     self.ball_marker.draw_line_strips([5.7, 1, 4.7, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
                 if self.start_calc_flag:
                     self.check_stop_throw()
-                    self.ik_cont.running_flag = True
                     if not self.start_calc_flag:
                         return
                     # draw markers
@@ -208,7 +208,9 @@ class BallWatcher(object):
                     input_posestamped = PoseStamped()
                     input_posestamped.pose.position = self.drop_point
                     input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
-                    self.ik_cont.set_goal_from_pose(input_posestamped)
+                    if self.pos_rec_list.shape[0] >=4:
+                        self.ik_cont.running_flag = True
+                        self.ik_cont.set_goal_from_pose(input_posestamped)
                     self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                     self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
             self.last_tf_time = self.pos_rec[0].header.stamp

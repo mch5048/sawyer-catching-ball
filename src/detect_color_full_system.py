@@ -51,7 +51,8 @@ import sawyer_catch_ball_calc as sawyer_calc
 
 #GLOBAL VARIABLES
 GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255]
-GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
+# GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
+GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 100, 0, 148, 255, 255]
 WITHIN_RAN_MIN = 0
 WITHIN_RAN_MAX = 3.5
 OUTLIER_FILT_NUM = 0.25
@@ -123,7 +124,9 @@ class Obj3DDetector(object):
 
     def time_sync_img_cb(self, rgb_img, depth_img):
         # rgb image process
-        self.color_track(rgb_img)
+        if self.color_track(rgb_img) is False:
+            print "color detection error"
+            return
         self.depth_cb(depth_img)
 
 
@@ -258,28 +261,28 @@ class Obj3DDetector(object):
         black_hi = np.array([b[3], b[4], b[5]])
         im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
         im_b_to_w_color = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
-        cv2.imshow('image_b_to_w_color', im_b_to_w_color)
-        cv2.waitKey(1) 
+        # cv2.imshow('image_b_to_w_color', im_b_to_w_color)
+        # cv2.waitKey(1) 
         img_blur = cv2.GaussianBlur(im_b_to_w_color, (9,9), 1)
-        cv2.imshow('image_blur', img_blur)
-        cv2.waitKey(1) 
+        # cv2.imshow('image_blur', img_blur)
+        # cv2.waitKey(1) 
         img_hsv = cv2.cvtColor(im_b_to_w_color, cv2.COLOR_BGR2HSV)  
-        cv2.imshow('image_hsv', img_hsv)
-        cv2.waitKey(1) 
+        # cv2.imshow('image_hsv', img_hsv)
+        # cv2.waitKey(1) 
         # low and high band for detecting red color in hsv which spans at each end of h-band
         low_vals_lo = np.array([v[0], v[1], v[2]])
         high_vals_lo = np.array([v[3], v[4], v[5]])
         im_hsv_ir = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
-        cv2.imshow('image_hsv_ir', im_hsv_ir)
-        cv2.waitKey(1)        
+        # cv2.imshow('image_hsv_ir', im_hsv_ir)
+        # cv2.waitKey(1)        
         kernel_erode = np.ones((e[0],e[0]),np.uint8)
         kernel_dilate = np.ones((e[1],e[1]),np.uint8)
         im_erode = cv2.erode(im_hsv_ir, kernel_erode, iterations=2)
         cv2.imshow('image_erode', im_erode)
         cv2.waitKey(1)   
         im_dilate = cv2.dilate(im_erode, kernel_dilate, iterations=2)  
-        cv2.imshow('image_dilate', im_dilate)
-        cv2.waitKey(1)   
+        # cv2.imshow('image_dilate', im_dilate)
+        # cv2.waitKey(1)   
         # img_detect_color, coords = self.specific_color_filter(cv_image)
         # imContours = cv2.findContours(im_total.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
         imContours = cv2.findContours(im_dilate, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
@@ -299,12 +302,15 @@ class Obj3DDetector(object):
                 cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
                 self.ball_radius = int(radius)
         tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_dilate)
-        coords = list(center)
-        cv2.imshow('image_final', tracked_color_im)
-        cv2.waitKey(1)
+        try:
+            coords = list(center)
+        except TypeError:
+            return False
+        # cv2.imshow('image_final', tracked_color_im)
+        # cv2.waitKey(1)
         self.tracked_pixel.x = coords[0]
         self.tracked_pixel.y = coords[1]
-
+        return True
 
 
 
