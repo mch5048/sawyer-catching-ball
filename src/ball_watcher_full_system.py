@@ -208,7 +208,7 @@ class BallWatcher(object):
                     input_posestamped = PoseStamped()
                     input_posestamped.pose.position = self.drop_point
                     input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
-                    if self.pos_rec_list.shape[0] >=4:
+                    if self.pos_rec_list.shape[0] >=3:
                         self.ik_cont.running_flag = True
                         self.ik_cont.set_goal_from_pose(input_posestamped)
                     self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)

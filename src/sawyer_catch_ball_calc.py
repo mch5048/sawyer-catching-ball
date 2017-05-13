@@ -195,7 +195,7 @@ def point_msg_avg(point_arr):
 # POINTCLOUD FILTERS #
 ######################
 
-def reject_outliers(data, m = 2.):
+def reject_outliers(data, m = 1.):
     # take matrix and return the one with no outliers
     if data != []:
         data = sorted(data)
@@ -219,8 +219,19 @@ def reject_outliers(data, m = 2.):
 def reject_outliers_1(data, m=2.):
     mu = np.mean(data)
     sigma = np.std(data)
-    return within_1(data, mu-sigma, mu+sigma)
+    f = 0.5
+    return within_1(data, mu-sigma*f, mu+sigma*f)
 
+
+def reject_outliers_nate(data):
+   # take matrix and return the one with no outliers
+   if data is not None:
+       rball = 0.03 # 3 cm in meters (estimate - Chainatee measure this)
+       m = min(data)
+       return [z for z in data if abs(z-m) < rball]
+   else:
+       print "Error in reject_outliers function : Input is null set, [] will be returned"
+       return []
 
 def mean(data):
 # return mean of matrix. (For Python 3.6.1 and upper, use statistics libs instead)
