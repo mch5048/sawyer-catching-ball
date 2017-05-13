@@ -33,7 +33,7 @@ import intera_interface
 import numpy as np
 import threading
 from urdf_parser_py.urdf import URDF
-import copy
+import time
 # import matplotlib.pyplot as plt
 
 #################
@@ -141,6 +141,7 @@ class BallWatcher(object):
     def tf_update_cb(self, tdat):
         # update ball position in real time
         # Filter ball outside x = 0 - 3.0m relative to base out
+        tstarttotal = time.time()
         self.p_cb = self.objDetector.p_ball_to_cam
         # print self.p_cb
         if (self.p_cb == []):
@@ -155,7 +156,6 @@ class BallWatcher(object):
 
 
         # change to subscribe lookuptf directly and multiply directly
-        # P_cb = copy.deepcopy(self.objDetector.p_ball_to_cam)
         P_cb = np.array([self.objDetector.p_ball_to_cam[0], self.objDetector.p_ball_to_cam[1], self.objDetector.p_ball_to_cam[2], self.objDetector.p_ball_to_cam[3]])
         timestamp = P_cb[3]
         P_cb[3] = 1
@@ -182,26 +182,34 @@ class BallWatcher(object):
         if (self.last_tf_time != self.pos_rec[0].header.stamp):
             # If running_flag is True, start detecting
             if self.running_flag:
+                trflag = time.time()
                 # check if the ball is being thrown yet
                 if not self.start_calc_flag:
                     self.check_start_throw()
                     self.ball_marker.draw_spheres([0, 0.7, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
                     self.ball_marker.draw_line_strips([5.7, 1, 4.7, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
+
                 if self.start_calc_flag:
                     self.check_stop_throw()
                     if not self.start_calc_flag:
                         return
                     # draw markers
+                    # tds = time.time()
                     self.ball_marker.draw_spheres([0.7, 0, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
+                    # print "tds: ", (time.time() - tds)*1000, " ms" 
+                    # tdls = time.time()
                     self.ball_marker.draw_line_strips([1, 0.27, 0.27,1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
-                    self.ball_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.pos_rec[0].point, 0.03)                
+                    # print "tdls: ", (time.time() - tdls)*1000, " ms"  
+                    # tdnt = time.time()
+                    self.ball_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.pos_rec[0].point, 0.03) 
+                    # print "tdnt: ", (time.time() - tdnt)*1000, " ms" 
                     # calculate the dropping position based on 2 points
-                    print "##########"
-                    print "pos_rec_listB4: ", self.pos_rec_list
+                    # print "##########"
+                    # print "pos_rec_listB4: ", self.pos_rec_list
                     self.pos_rec_list = np.append(self.pos_rec_list, self.pos_rec[0])
                     # self.pos_rec_list = (self.pos_rec_list).append(self.pos_rec[0])
-                    print "pos_rec_list: ", self.pos_rec_list
-                    print "##########"
+                    # print "pos_rec_list: ", self.pos_rec_list
+                    # print "##########"
                     self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
 
                     # average drop point
@@ -213,9 +221,13 @@ class BallWatcher(object):
                         self.ik_cont.set_goal_from_pose(input_posestamped)
                     self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                     self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
+                # print "t_running_flag : ", (time.time() - trflag)*1000
             self.last_tf_time = self.pos_rec[0].header.stamp
-
-
+        totaltime = (time.time() - tstarttotal)*1000
+        # if self.start_calc_flag:
+        #     print "tf_update_cb_TOTAL_st_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
+        # else:
+        #     print "tf_update_cb_TOTAL_not_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
     def keycb(self, tdat):
         # check if there was a key pressed, and if so, check it's value and
         # toggle flag:
