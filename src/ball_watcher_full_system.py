@@ -210,22 +210,31 @@ class BallWatcher(object):
                     # self.pos_rec_list = (self.pos_rec_list).append(self.pos_rec[0])
                     # print "pos_rec_list: ", self.pos_rec_list
                     # print "##########"
+                    t_ompc = time.time()
                     self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
-
+                    print "t_ompc: ", (time.time() - t_ompc)*1000, " ms" 
                     # average drop point
+                    # t_ip_ps = time.time()
                     input_posestamped = PoseStamped()
+                    # print "t_ip_ps: ", (time.time() - t_ip_ps)*1000, " ms" 
+                    # t_p_pos = time.time()
                     input_posestamped.pose.position = self.drop_point
+                    # print "t_p_pos: ", (time.time() - t_p_pos)*1000, " ms" 
+                    # t_ip_pose_or = time.time()
                     input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
+                    # print "t_ip_pose_or: ", (time.time() - t_ip_pose_or)*1000, " ms" 
                     if self.pos_rec_list.shape[0] >=3:
+                        # t_ik_loop = time.time()                        
                         self.ik_cont.running_flag = True
                         self.ik_cont.set_goal_from_pose(input_posestamped)
+                        # print "t_ik_loop: ", (time.time() - t_ik_loop)*1000, " ms" 
                     self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                     self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
                 # print "t_running_flag : ", (time.time() - trflag)*1000
             self.last_tf_time = self.pos_rec[0].header.stamp
         totaltime = (time.time() - tstarttotal)*1000
-        # if self.start_calc_flag:
-        #     print "tf_update_cb_TOTAL_st_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
+        if self.start_calc_flag:
+            print "tf_update_cb_TOTAL_st_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
         # else:
         #     print "tf_update_cb_TOTAL_not_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
     def keycb(self, tdat):

@@ -2,6 +2,7 @@ import numpy as np
 from math import cos, sin, radians, sqrt, atan2, atan, tan
 from geometry_msgs.msg import Point, PointStamped
 from scipy.optimize import leastsq, minimize
+import time
 
 
 
@@ -79,9 +80,23 @@ def projectile_calc(pointstamped_0, pointstamped_1, z_ref):
 
 def f_proj(lis, t):
 # tpl(Xo, Yo, Zo, Vo, alpha,  theta)
-   return np.array([lis[0] + lis[3]*cos(lis[4])*cos(lis[5])*t \
-                    ,lis[1] + lis[3]*sin(lis[4])*cos(lis[5])*t \
-                    ,lis[2] + lis[3]*sin(lis[5])*t - 9.81/2*(t**2)])
+    # return np.array([lis[0] + lis[3]*cos(lis[4])*cos(lis[5])*t \
+    #                 ,lis[1] + lis[3]*sin(lis[4])*cos(lis[5])*t \
+    #                 ,lis[2] + lis[3]*sin(lis[5])*t - 9.81/2*(t**2)])
+    Vo = lis[3]
+    alpha = lis[4]
+    c_theta = cos(lis[5])
+    return np.array([lis[0] + Vo*cos(alpha)*c_theta*t \
+                     ,lis[1] + Vo*sin(alpha)*c_theta*t \
+                    ,lis[2] + Vo*sin(lis[5])*t - 9.81/2*(t**2)])
+
+def f_proj_2(lis, t):
+# array[Xo, Yo, Zo, Vhor, Vvert, alpha]
+    ap = lis[5]
+    Vhor = lis[3]
+    return np.array([lis[0] + Vhor*cos(ap)*t \
+                     ,lis[1] + Vhor*sin(ap)*t \
+                     ,lis[2] + lis[4]*t - 9.81/2*(t**2)])
 
 def opt_min_proj_calc(ps_list, z_ref):
     list_init = np.zeros(6)
@@ -91,12 +106,24 @@ def opt_min_proj_calc(ps_list, z_ref):
     # print "tminMod: ", tmin
     # print "\r\n"
     # ps_list_T = ps_list[i].header.stamp.secs + (10**-9)*ps_list[i].header.stamp.nsecs
-    cost_func=lambda ls: sum([np.linalg.norm(f_proj(ls, (ps_list[i].header.stamp-tmin)) - np.array([ps_list[i].point.x, ps_list[i].point.y, ps_list[i].point.z])) for i in range(ps_list.shape[0])])
+    t_cf = time.time()
+    # cost_func=lambda ls: sum([np.linalg.norm(f_proj(ls, (ps_list[i].header.stamp-tmin)) - np.array([ps_list[i].point.x, ps_list[i].point.y, ps_list[i].point.z])) for i in range(ps_list.shape[0])])
+    # cost_func=lambda ls: sum([np.linalg.norm(f_proj(ls, (ps_list[i].header.stamp-tmin))-[ps_list[i].point.x, ps_list[i].point.y, ps_list[i].point.z]) for i in range(ps_list.shape[0])])
+    cost_func=lambda ls: sum([np.linalg.norm(f_proj(ls, (ps.header.stamp-tmin))-[ps.point.x, ps.point.y, ps.point.z]) for ps in ps_list])
+    print "t_cf: ", (time.time() - t_cf)*1000, " ms"
+    t_mm = time.time()
     result = minimize(cost_func, list_init)
+    print "t_mm: ", (time.time() - t_mm)*1000 , " ms"
     # coeff = np.array([-9.81/2, result.x[5], result.x[2] - z_ref])
+    t_coeff = time.time()
     coeff = np.array([-9.81/2, result.x[3]*sin(result.x[5]), result.x[2] - z_ref])
+    print "t_coeff: ", (time.time() - t_coeff)*1000 , " ms"
+    t_amax = time.time()
     tFin = np.amax(np.roots(coeff))
+    print "t_amax: ", (time.time() - t_amax)*1000 , " ms"
+    t_fproj = time.time()
     Fin = f_proj(result.x, tFin)
+    print "t_fproj: ", (time.time() - t_fproj)*1000 , " ms"
     # print "tFin: ", tFin
     # print "t: ", np.roots(coeff)
     # print "\r\n"
