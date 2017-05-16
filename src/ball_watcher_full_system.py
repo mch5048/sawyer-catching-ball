@@ -87,6 +87,7 @@ class BallWatcher(object):
         self.drop_point = Point()
         self.drop_point_arr = []
         self.pos_rec_list = np.array([])
+        self.pos_xyzt = np.array([])
         self.drop_point_marker = sawyer_mk.MarkerDrawer("/base", "dropping_ball", 500)
         self.ik_cont = IKController()
         self.robot = URDF.from_parameter_server()  
@@ -207,11 +208,21 @@ class BallWatcher(object):
                     # print "##########"
                     # print "pos_rec_listB4: ", self.pos_rec_list
                     self.pos_rec_list = np.append(self.pos_rec_list, self.pos_rec[0])
+                    if self.pos_xyzt.shape[0] == 0:
+                        tmin = self.pos_rec[0].header.stamp
+                        self.pos_xyzt = np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]])
+                    else:
+                        tmin = self.pos_xyzt[0][3]
+                        self.pos_xyzt = np.concatenate((self.pos_xyzt, np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]])))
+                    # print "prove p_xyzt.sh: ", self.pos_xyzt.shape
+                    # print "prove p_r.sh: ",  np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]]).shape
+                    # self.pos_xyzt = np.append(self.pos_xyzt, np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]]) ,axis = 0)
                     # self.pos_rec_list = (self.pos_rec_list).append(self.pos_rec[0])
                     # print "pos_rec_list: ", self.pos_rec_list
                     # print "##########"
                     t_ompc = time.time()
-                    self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
+                    # self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
+                    self.drop_point = sawyer_calc.opt_min_proj_calc_1(self.pos_xyzt, Z_CENTER)
                     print "t_ompc: ", (time.time() - t_ompc)*1000, " ms" 
                     # average drop point
                     # t_ip_ps = time.time()
@@ -223,7 +234,8 @@ class BallWatcher(object):
                     # t_ip_pose_or = time.time()
                     input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
                     # print "t_ip_pose_or: ", (time.time() - t_ip_pose_or)*1000, " ms" 
-                    if self.pos_rec_list.shape[0] >=3:
+                    # if self.pos_rec_list.shape[0] >=3:
+                    if self.pos_xyzt.shape[0] >=3:
                         # t_ik_loop = time.time()                        
                         self.ik_cont.running_flag = True
                         self.ik_cont.set_goal_from_pose(input_posestamped)
@@ -251,7 +263,8 @@ class BallWatcher(object):
                 self.running_flag = not self.running_flag
                 if not self.running_flag:
                     self.ball_marker.delete_all_mks()
-                    self.pos_rec_list = []
+                    self.pos_rec_list = np.array([])
+                    self.pos_xyzt = np.array([])
                     self.ik_cont.running_flag = False
             elif c == 'c':
                 rospy.loginfo("You pressed 'c', Start calibration\nrunning_flag = False")
