@@ -6,7 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /ReferenceModel1/Links1
-        - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.644444
     Tree Height: 742
@@ -36,7 +35,7 @@ Visualization Manager:
       Cell Size: 1
       Class: rviz/Grid
       Color: 160; 160; 164
-      Enabled: true
+      Enabled: false
       Line Style:
         Line Width: 0.03
         Value: Lines
@@ -49,11 +48,11 @@ Visualization Manager:
       Plane: XY
       Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
-      Value: true
+      Value: false
     - Alpha: 0.25
       Class: rviz/RobotModel
       Collision Enabled: false
-      Enabled: true
+      Enabled: false
       Links:
         All Links Enabled: true
         Expand Joint Details: false
@@ -64,142 +63,33 @@ Visualization Manager:
       Robot Description: /reference/robot_description
       TF Prefix: /reference
       Update Interval: 0
-      Value: true
+      Value: false
       Visual Enabled: true
     - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false
-      Enabled: true
+      Enabled: false
       Links:
         All Links Enabled: true
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        base:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        controller_box:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        head:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        head_camera:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        pedestal:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        pedestal_feet:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_arm_base_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_arm_itb:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        right_gripper:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_gripper_base:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_hand:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_hand_camera:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        right_l0:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_l1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_l2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_l3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_l4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_l5:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_l6:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_torso_itb:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        right_wrist:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        screen:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        torso:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: ActualModel
       Robot Description: robot_description
       TF Prefix: ""
       Update Interval: 0
-      Value: true
+      Value: false
       Visual Enabled: true
     - Class: rviz/InteractiveMarkers
       Enable Transparency: true
-      Enabled: true
+      Enabled: false
       Name: InteractiveMarkers
       Show Axes: false
       Show Descriptions: false
       Show Visual Aids: false
       Update Topic: /reference_control/update
-      Value: true
+      Value: false
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
@@ -319,9 +209,9 @@ Visualization Manager:
       Tree:
         world:
           base:
+            ball:
+              {}
             camera_link:
-              ball:
-                {}
               camera_depth_frame:
                 camera_depth_optical_frame:
                   {}
@@ -409,7 +299,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -426,13 +316,654 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: visualization_marker
       Name: Marker
       Namespaces:
-        ball_line_strip: true
+        ball_ls_10: true
+        ball_ls_100: true
+        ball_ls_101: true
+        ball_ls_102: true
+        ball_ls_103: true
+        ball_ls_104: true
+        ball_ls_105: true
+        ball_ls_106: true
+        ball_ls_107: true
+        ball_ls_108: true
+        ball_ls_109: true
+        ball_ls_11: true
+        ball_ls_110: true
+        ball_ls_111: true
+        ball_ls_112: true
+        ball_ls_113: true
+        ball_ls_114: true
+        ball_ls_115: true
+        ball_ls_116: true
+        ball_ls_117: true
+        ball_ls_118: true
+        ball_ls_119: true
+        ball_ls_12: true
+        ball_ls_120: true
+        ball_ls_121: true
+        ball_ls_122: true
+        ball_ls_123: true
+        ball_ls_124: true
+        ball_ls_125: true
+        ball_ls_126: true
+        ball_ls_127: true
+        ball_ls_128: true
+        ball_ls_129: true
+        ball_ls_13: true
+        ball_ls_130: true
+        ball_ls_131: true
+        ball_ls_132: true
+        ball_ls_133: true
+        ball_ls_134: true
+        ball_ls_135: true
+        ball_ls_136: true
+        ball_ls_137: true
+        ball_ls_138: true
+        ball_ls_139: true
+        ball_ls_14: true
+        ball_ls_140: true
+        ball_ls_141: true
+        ball_ls_142: true
+        ball_ls_143: true
+        ball_ls_144: true
+        ball_ls_145: true
+        ball_ls_146: true
+        ball_ls_147: true
+        ball_ls_148: true
+        ball_ls_149: true
+        ball_ls_15: true
+        ball_ls_150: true
+        ball_ls_151: true
+        ball_ls_152: true
+        ball_ls_153: true
+        ball_ls_154: true
+        ball_ls_155: true
+        ball_ls_156: true
+        ball_ls_157: true
+        ball_ls_158: true
+        ball_ls_159: true
+        ball_ls_16: true
+        ball_ls_160: true
+        ball_ls_161: true
+        ball_ls_162: true
+        ball_ls_163: true
+        ball_ls_164: true
+        ball_ls_165: true
+        ball_ls_166: true
+        ball_ls_167: true
+        ball_ls_168: true
+        ball_ls_169: true
+        ball_ls_17: true
+        ball_ls_170: true
+        ball_ls_171: true
+        ball_ls_172: true
+        ball_ls_173: true
+        ball_ls_174: true
+        ball_ls_175: true
+        ball_ls_176: true
+        ball_ls_177: true
+        ball_ls_178: true
+        ball_ls_179: true
+        ball_ls_18: true
+        ball_ls_180: true
+        ball_ls_181: true
+        ball_ls_182: true
+        ball_ls_183: true
+        ball_ls_184: true
+        ball_ls_185: true
+        ball_ls_186: true
+        ball_ls_187: true
+        ball_ls_188: true
+        ball_ls_189: true
+        ball_ls_19: true
+        ball_ls_190: true
+        ball_ls_191: true
+        ball_ls_192: true
+        ball_ls_193: true
+        ball_ls_194: true
+        ball_ls_195: true
+        ball_ls_196: true
+        ball_ls_197: true
+        ball_ls_198: true
+        ball_ls_199: true
+        ball_ls_2: true
+        ball_ls_20: true
+        ball_ls_200: true
+        ball_ls_201: true
+        ball_ls_202: true
+        ball_ls_203: true
+        ball_ls_204: true
+        ball_ls_205: true
+        ball_ls_206: true
+        ball_ls_207: true
+        ball_ls_208: true
+        ball_ls_209: true
+        ball_ls_21: true
+        ball_ls_210: true
+        ball_ls_211: true
+        ball_ls_212: true
+        ball_ls_213: true
+        ball_ls_214: true
+        ball_ls_215: true
+        ball_ls_216: true
+        ball_ls_217: true
+        ball_ls_218: true
+        ball_ls_219: true
+        ball_ls_22: true
+        ball_ls_220: true
+        ball_ls_221: true
+        ball_ls_222: true
+        ball_ls_223: true
+        ball_ls_224: true
+        ball_ls_225: true
+        ball_ls_226: true
+        ball_ls_227: true
+        ball_ls_228: true
+        ball_ls_229: true
+        ball_ls_23: true
+        ball_ls_230: true
+        ball_ls_231: true
+        ball_ls_232: true
+        ball_ls_233: true
+        ball_ls_234: true
+        ball_ls_235: true
+        ball_ls_236: true
+        ball_ls_237: true
+        ball_ls_238: true
+        ball_ls_239: true
+        ball_ls_24: true
+        ball_ls_240: true
+        ball_ls_241: true
+        ball_ls_242: true
+        ball_ls_243: true
+        ball_ls_244: true
+        ball_ls_245: true
+        ball_ls_246: true
+        ball_ls_247: true
+        ball_ls_248: true
+        ball_ls_249: true
+        ball_ls_25: true
+        ball_ls_250: true
+        ball_ls_251: true
+        ball_ls_252: true
+        ball_ls_253: true
+        ball_ls_254: true
+        ball_ls_255: true
+        ball_ls_256: true
+        ball_ls_257: true
+        ball_ls_258: true
+        ball_ls_259: true
+        ball_ls_26: true
+        ball_ls_260: true
+        ball_ls_261: true
+        ball_ls_262: true
+        ball_ls_263: true
+        ball_ls_264: true
+        ball_ls_265: true
+        ball_ls_266: true
+        ball_ls_267: true
+        ball_ls_268: true
+        ball_ls_269: true
+        ball_ls_27: true
+        ball_ls_270: true
+        ball_ls_271: true
+        ball_ls_272: true
+        ball_ls_273: true
+        ball_ls_274: true
+        ball_ls_275: true
+        ball_ls_276: true
+        ball_ls_277: true
+        ball_ls_278: true
+        ball_ls_279: true
+        ball_ls_28: true
+        ball_ls_280: true
+        ball_ls_281: true
+        ball_ls_282: true
+        ball_ls_283: true
+        ball_ls_284: true
+        ball_ls_285: true
+        ball_ls_286: true
+        ball_ls_287: true
+        ball_ls_288: true
+        ball_ls_289: true
+        ball_ls_29: true
+        ball_ls_290: true
+        ball_ls_291: true
+        ball_ls_292: true
+        ball_ls_293: true
+        ball_ls_294: true
+        ball_ls_295: true
+        ball_ls_296: true
+        ball_ls_297: true
+        ball_ls_298: true
+        ball_ls_299: true
+        ball_ls_3: true
+        ball_ls_30: true
+        ball_ls_300: true
+        ball_ls_301: true
+        ball_ls_302: true
+        ball_ls_303: true
+        ball_ls_304: true
+        ball_ls_305: true
+        ball_ls_306: true
+        ball_ls_307: true
+        ball_ls_308: true
+        ball_ls_309: true
+        ball_ls_31: true
+        ball_ls_310: true
+        ball_ls_32: true
+        ball_ls_33: true
+        ball_ls_34: true
+        ball_ls_35: true
+        ball_ls_36: true
+        ball_ls_37: true
+        ball_ls_38: true
+        ball_ls_39: true
+        ball_ls_4: true
+        ball_ls_40: true
+        ball_ls_41: true
+        ball_ls_42: true
+        ball_ls_43: true
+        ball_ls_44: true
+        ball_ls_45: true
+        ball_ls_46: true
+        ball_ls_47: true
+        ball_ls_48: true
+        ball_ls_49: true
+        ball_ls_5: true
+        ball_ls_50: true
+        ball_ls_51: true
+        ball_ls_52: true
+        ball_ls_53: true
+        ball_ls_54: true
+        ball_ls_55: true
+        ball_ls_56: true
+        ball_ls_57: true
+        ball_ls_58: true
+        ball_ls_59: true
+        ball_ls_6: true
+        ball_ls_60: true
+        ball_ls_61: true
+        ball_ls_62: true
+        ball_ls_63: true
+        ball_ls_64: true
+        ball_ls_65: true
+        ball_ls_66: true
+        ball_ls_67: true
+        ball_ls_68: true
+        ball_ls_69: true
+        ball_ls_7: true
+        ball_ls_70: true
+        ball_ls_71: true
+        ball_ls_72: true
+        ball_ls_73: true
+        ball_ls_74: true
+        ball_ls_75: true
+        ball_ls_76: true
+        ball_ls_77: true
+        ball_ls_78: true
+        ball_ls_79: true
+        ball_ls_8: true
+        ball_ls_80: true
+        ball_ls_81: true
+        ball_ls_82: true
+        ball_ls_83: true
+        ball_ls_84: true
+        ball_ls_85: true
+        ball_ls_86: true
+        ball_ls_87: true
+        ball_ls_88: true
+        ball_ls_89: true
+        ball_ls_9: true
+        ball_ls_90: true
+        ball_ls_91: true
+        ball_ls_92: true
+        ball_ls_93: true
+        ball_ls_94: true
+        ball_ls_95: true
+        ball_ls_96: true
+        ball_ls_97: true
+        ball_ls_98: true
+        ball_ls_99: true
+        ball_numtxt_1: true
+        ball_numtxt_2: true
+        ball_numtxt_3: true
+        ball_numtxt_4: true
+        ball_numtxt_5: true
+        ball_numtxt_6: true
+        ball_numtxt_7: true
+        ball_numtxt_8: true
+        ball_sph_10: true
+        ball_sph_100: true
+        ball_sph_101: true
+        ball_sph_102: true
+        ball_sph_103: true
+        ball_sph_104: true
+        ball_sph_105: true
+        ball_sph_106: true
+        ball_sph_107: true
+        ball_sph_108: true
+        ball_sph_109: true
+        ball_sph_11: true
+        ball_sph_110: true
+        ball_sph_111: true
+        ball_sph_112: true
+        ball_sph_113: true
+        ball_sph_114: true
+        ball_sph_115: true
+        ball_sph_116: true
+        ball_sph_117: true
+        ball_sph_118: true
+        ball_sph_119: true
+        ball_sph_12: true
+        ball_sph_120: true
+        ball_sph_121: true
+        ball_sph_122: true
+        ball_sph_123: true
+        ball_sph_124: true
+        ball_sph_125: true
+        ball_sph_126: true
+        ball_sph_127: true
+        ball_sph_128: true
+        ball_sph_129: true
+        ball_sph_13: true
+        ball_sph_130: true
+        ball_sph_131: true
+        ball_sph_132: true
+        ball_sph_133: true
+        ball_sph_134: true
+        ball_sph_135: true
+        ball_sph_136: true
+        ball_sph_137: true
+        ball_sph_138: true
+        ball_sph_139: true
+        ball_sph_14: true
+        ball_sph_140: true
+        ball_sph_141: true
+        ball_sph_142: true
+        ball_sph_143: true
+        ball_sph_144: true
+        ball_sph_145: true
+        ball_sph_146: true
+        ball_sph_147: true
+        ball_sph_148: true
+        ball_sph_149: true
+        ball_sph_15: true
+        ball_sph_150: true
+        ball_sph_151: true
+        ball_sph_152: true
+        ball_sph_153: true
+        ball_sph_154: true
+        ball_sph_155: true
+        ball_sph_156: true
+        ball_sph_157: true
+        ball_sph_158: true
+        ball_sph_159: true
+        ball_sph_16: true
+        ball_sph_160: true
+        ball_sph_161: true
+        ball_sph_162: true
+        ball_sph_163: true
+        ball_sph_164: true
+        ball_sph_165: true
+        ball_sph_166: true
+        ball_sph_167: true
+        ball_sph_168: true
+        ball_sph_169: true
+        ball_sph_17: true
+        ball_sph_170: true
+        ball_sph_171: true
+        ball_sph_172: true
+        ball_sph_173: true
+        ball_sph_174: true
+        ball_sph_175: true
+        ball_sph_176: true
+        ball_sph_177: true
+        ball_sph_178: true
+        ball_sph_179: true
+        ball_sph_18: true
+        ball_sph_180: true
+        ball_sph_181: true
+        ball_sph_182: true
+        ball_sph_183: true
+        ball_sph_184: true
+        ball_sph_185: true
+        ball_sph_186: true
+        ball_sph_187: true
+        ball_sph_188: true
+        ball_sph_189: true
+        ball_sph_19: true
+        ball_sph_190: true
+        ball_sph_191: true
+        ball_sph_192: true
+        ball_sph_193: true
+        ball_sph_194: true
+        ball_sph_195: true
+        ball_sph_196: true
+        ball_sph_197: true
+        ball_sph_198: true
+        ball_sph_199: true
+        ball_sph_2: true
+        ball_sph_20: true
+        ball_sph_200: true
+        ball_sph_201: true
+        ball_sph_202: true
+        ball_sph_203: true
+        ball_sph_204: true
+        ball_sph_205: true
+        ball_sph_206: true
+        ball_sph_207: true
+        ball_sph_208: true
+        ball_sph_209: true
+        ball_sph_21: true
+        ball_sph_210: true
+        ball_sph_211: true
+        ball_sph_212: true
+        ball_sph_213: true
+        ball_sph_214: true
+        ball_sph_215: true
+        ball_sph_216: true
+        ball_sph_217: true
+        ball_sph_218: true
+        ball_sph_219: true
+        ball_sph_22: true
+        ball_sph_220: true
+        ball_sph_221: true
+        ball_sph_222: true
+        ball_sph_223: true
+        ball_sph_224: true
+        ball_sph_225: true
+        ball_sph_226: true
+        ball_sph_227: true
+        ball_sph_228: true
+        ball_sph_229: true
+        ball_sph_23: true
+        ball_sph_230: true
+        ball_sph_231: true
+        ball_sph_232: true
+        ball_sph_233: true
+        ball_sph_234: true
+        ball_sph_235: true
+        ball_sph_236: true
+        ball_sph_237: true
+        ball_sph_238: true
+        ball_sph_239: true
+        ball_sph_24: true
+        ball_sph_240: true
+        ball_sph_241: true
+        ball_sph_242: true
+        ball_sph_243: true
+        ball_sph_244: true
+        ball_sph_245: true
+        ball_sph_246: true
+        ball_sph_247: true
+        ball_sph_248: true
+        ball_sph_249: true
+        ball_sph_25: true
+        ball_sph_250: true
+        ball_sph_251: true
+        ball_sph_252: true
+        ball_sph_253: true
+        ball_sph_254: true
+        ball_sph_255: true
+        ball_sph_256: true
+        ball_sph_257: true
+        ball_sph_258: true
+        ball_sph_259: true
+        ball_sph_26: true
+        ball_sph_260: true
+        ball_sph_261: true
+        ball_sph_262: true
+        ball_sph_263: true
+        ball_sph_264: true
+        ball_sph_265: true
+        ball_sph_266: true
+        ball_sph_267: true
+        ball_sph_268: true
+        ball_sph_269: true
+        ball_sph_27: true
+        ball_sph_270: true
+        ball_sph_271: true
+        ball_sph_272: true
+        ball_sph_273: true
+        ball_sph_274: true
+        ball_sph_275: true
+        ball_sph_276: true
+        ball_sph_277: true
+        ball_sph_278: true
+        ball_sph_279: true
+        ball_sph_28: true
+        ball_sph_280: true
+        ball_sph_281: true
+        ball_sph_282: true
+        ball_sph_283: true
+        ball_sph_284: true
+        ball_sph_285: true
+        ball_sph_286: true
+        ball_sph_287: true
+        ball_sph_288: true
+        ball_sph_289: true
+        ball_sph_29: true
+        ball_sph_290: true
+        ball_sph_291: true
+        ball_sph_292: true
+        ball_sph_293: true
+        ball_sph_294: true
+        ball_sph_295: true
+        ball_sph_296: true
+        ball_sph_297: true
+        ball_sph_298: true
+        ball_sph_299: true
+        ball_sph_3: true
+        ball_sph_30: true
+        ball_sph_300: true
+        ball_sph_301: true
+        ball_sph_302: true
+        ball_sph_303: true
+        ball_sph_304: true
+        ball_sph_305: true
+        ball_sph_306: true
+        ball_sph_307: true
+        ball_sph_308: true
+        ball_sph_309: true
+        ball_sph_31: true
+        ball_sph_310: true
+        ball_sph_32: true
+        ball_sph_33: true
+        ball_sph_34: true
+        ball_sph_35: true
+        ball_sph_36: true
+        ball_sph_37: true
+        ball_sph_38: true
+        ball_sph_39: true
+        ball_sph_4: true
+        ball_sph_40: true
+        ball_sph_41: true
+        ball_sph_42: true
+        ball_sph_43: true
+        ball_sph_44: true
+        ball_sph_45: true
+        ball_sph_46: true
+        ball_sph_47: true
+        ball_sph_48: true
+        ball_sph_49: true
+        ball_sph_5: true
+        ball_sph_50: true
+        ball_sph_51: true
+        ball_sph_52: true
+        ball_sph_53: true
+        ball_sph_54: true
+        ball_sph_55: true
+        ball_sph_56: true
+        ball_sph_57: true
+        ball_sph_58: true
+        ball_sph_59: true
+        ball_sph_6: true
+        ball_sph_60: true
+        ball_sph_61: true
+        ball_sph_62: true
+        ball_sph_63: true
+        ball_sph_64: true
+        ball_sph_65: true
+        ball_sph_66: true
+        ball_sph_67: true
+        ball_sph_68: true
+        ball_sph_69: true
+        ball_sph_7: true
+        ball_sph_70: true
+        ball_sph_71: true
+        ball_sph_72: true
+        ball_sph_73: true
+        ball_sph_74: true
+        ball_sph_75: true
+        ball_sph_76: true
+        ball_sph_77: true
+        ball_sph_78: true
+        ball_sph_79: true
+        ball_sph_8: true
+        ball_sph_80: true
+        ball_sph_81: true
+        ball_sph_82: true
+        ball_sph_83: true
+        ball_sph_84: true
+        ball_sph_85: true
+        ball_sph_86: true
+        ball_sph_87: true
+        ball_sph_88: true
+        ball_sph_89: true
+        ball_sph_9: true
+        ball_sph_90: true
+        ball_sph_91: true
+        ball_sph_92: true
+        ball_sph_93: true
+        ball_sph_94: true
+        ball_sph_95: true
+        ball_sph_96: true
+        ball_sph_97: true
+        ball_sph_98: true
+        ball_sph_99: true
+        dropping_ball_numtxt_1: true
+        dropping_ball_numtxt_2: true
+        dropping_ball_numtxt_3: true
+        dropping_ball_numtxt_4: true
+        dropping_ball_numtxt_5: true
+        dropping_ball_numtxt_6: true
+        dropping_ball_numtxt_7: true
+        dropping_ball_numtxt_8: true
+        dropping_ball_sph_2: true
+        dropping_ball_sph_3: true
+        dropping_ball_sph_4: true
+        dropping_ball_sph_5: true
+        dropping_ball_sph_6: true
+        dropping_ball_sph_7: true
+        dropping_ball_sph_8: true
+        dropping_ball_sph_9: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -459,22 +990,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.2909
+      Distance: 3.27117
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.236859
-        Y: -0.142179
-        Z: -0.0207027
+        X: 1.13214
+        Y: 0.624493
+        Z: 0.117754
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.2898
+      Pitch: 0.169799
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.08725
+      Yaw: 5.74722
     Saved: ~
 Window Geometry:
   Displays:
@@ -492,5 +1023,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1367
-  X: 161
-  Y: 20
+  X: -12
+  Y: 14
