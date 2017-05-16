@@ -104,7 +104,8 @@ class BallWatcher(object):
         self.T_sc_p, self.T_sc_q = self.tf_listener.lookupTransform("base", "camera_link", rospy.Time())
         self.T_sc = tr.euler_matrix(*tr.euler_from_quaternion(self.T_sc_q))
         self.T_sc[0:3,-1] = self.T_sc_p
-
+        
+        self.t_min = 0
 
         # kbhit instance
         self.kb = kbhit.KBHit()
@@ -209,11 +210,10 @@ class BallWatcher(object):
                     # print "pos_rec_listB4: ", self.pos_rec_list
                     self.pos_rec_list = np.append(self.pos_rec_list, self.pos_rec[0])
                     if self.pos_xyzt.shape[0] == 0:
-                        tmin = self.pos_rec[0].header.stamp
-                        self.pos_xyzt = np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]])
+                        self.t_min = self.pos_rec[0].header.stamp
+                        self.pos_xyzt = np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - self.t_min]])
                     else:
-                        tmin = self.pos_xyzt[0][3]
-                        self.pos_xyzt = np.concatenate((self.pos_xyzt, np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]])))
+                        self.pos_xyzt = np.concatenate((self.pos_xyzt, np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - self.t_min]])))
                     # print "prove p_xyzt.sh: ", self.pos_xyzt.shape
                     # print "prove p_r.sh: ",  np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]]).shape
                     # self.pos_xyzt = np.append(self.pos_xyzt, np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - tmin]]) ,axis = 0)
@@ -245,8 +245,8 @@ class BallWatcher(object):
                 # print "t_running_flag : ", (time.time() - trflag)*1000
             self.last_tf_time = self.pos_rec[0].header.stamp
         totaltime = (time.time() - tstarttotal)*1000
-        if self.start_calc_flag:
-            print "tf_update_cb_TOTAL_st_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
+        # if self.start_calc_flag:
+        #     print "tf_update_cb_TOTAL_st_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
         # else:
         #     print "tf_update_cb_TOTAL_not_calc: ", (time.time() - tstarttotal)*1000 , " ms \r\n"
     def keycb(self, tdat):

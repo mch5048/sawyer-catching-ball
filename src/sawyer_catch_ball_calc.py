@@ -89,9 +89,6 @@ def f_proj_2(lis, t):
 
 def f_proj(lis, t):
 # tpl(Xo, Yo, Zo, Vo, alpha,  theta)
-    # return np.array([lis[0] + lis[3]*cos(lis[4])*cos(lis[5])*t \
-    #                 ,lis[1] + lis[3]*sin(lis[4])*cos(lis[5])*t \
-    #                 ,lis[2] + lis[3]*sin(lis[5])*t - 9.81/2*(t**2)])
     Vo = lis[3]
     alpha = lis[4]
     c_theta = cos(lis[5])
@@ -100,41 +97,38 @@ def f_proj(lis, t):
                     ,lis[2] + Vo*sin(lis[5])*t - 9.81/2*(t**2)])
 
 def f_proj_1(t,lis):
-    # print "t: ", t
+    # tpl(Xo, Yo, Zo, Vo, alpha,  theta)
     Vo = lis[3]
     alpha = lis[4]
     c_theta = cos(lis[5])
+    # print "t: ", t
+    # print "lis: ", lis
+    # print "once: ", np.array([lis[0] + Vo*cos(alpha)*c_theta*t \
+    #                  ,lis[1] + Vo*sin(alpha)*c_theta*t \
+    #                 ,lis[2] + Vo*sin(lis[5])*t - 9.81/2*(t**2)])
     return np.array([lis[0] + Vo*cos(alpha)*c_theta*t \
                      ,lis[1] + Vo*sin(alpha)*c_theta*t \
                     ,lis[2] + Vo*sin(lis[5])*t - 9.81/2*(t**2)])
 
-
-
-
-
 def opt_min_proj_calc_1(ps_xyzt, z_ref):
+    # print "########################### START ############################"
+    # print "########################### START ############################"
+    # print "########################### START ############################"
     list_init = np.zeros(6)
-    print "ps_xyzt: ", ps_xyzt
-    print "ps_xyzt[:,3] ", ps_xyzt[:,3]
-    print "ps_xyzt[:,:3] ", ps_xyzt[:,:3]
-    # tmin = ps_xyzt[0].header.stamp
-    ###############
-    # cost_func=lambda ls: sum([np.linalg.norm(f_proj(ls, (ps.header.stamp-tmin))-[ps.point.x, ps.point.y, ps.point.z]) for ps in ps_list])
-    # result = minimize(cost_func, list_init)
-    ###############
     def cost_fnc_proj(ls):
-        # tmin = ps_xyzt[0].header.stamp
-        # psxyzt = np.array([[ps.point.x, ps.point.y, ps.point.z, ps.header.stamp - tmin] for ps in ps_xyzt])
-        # psxyzt = np.array([ps_list.point.x, ps_list.point.y, ps_list.point.z, ps_list.header.stamp - tmin])
-        # print "psxyzt: ", psxyzt
-        # print "psxyzt[:, :3]: ", psxyzt[:,:3]
-        # print "f_proj_1: ", f_proj_1(psxyzt[:,3],ls) 
-        # print "psxyzt[:,:3]: ", psxyzt[:,:3]
-        return np.sum(np.linalg.norm(f_proj_1(ps_xyzt[:,3],ls).T - ps_xyzt[:,:3]))
+        # print "ps_xyzt: ", ps_xyzt
+        # print "ps_xyzt[:,3] is t(Nx1): ", ps_xyzt[:,3]
+        # print "f_proj_1(ps_xyzt[:,3],ls) is (Nx3): ", f_proj_1(ps_xyzt[:,3],ls).T
+        # print "ps_xyzt[:,:3] is xyz(Nx3): ", ps_xyzt[:,:3]
+        # print "f_proj_1(ps_xyzt[:,3],ls).T: ", f_proj_1(ps_xyzt[:,3],ls).T
+        # print "ps_xyzt[:,:3]: ", ps_xyzt[:,:3]
+        # print "np.linalg.norm(f_proj_1(ps_xyzt[:,3],ls).T - ps_xyzt[:,:3])", np.linalg.norm(f_proj_1(ps_xyzt[:,3],ls).T - ps_xyzt[:,:3])
+        # print "###################################\r\n"
+        return np.sum(np.linalg.norm(f_proj_1(ps_xyzt[:,3],ls).T - ps_xyzt[:,:3], axis = 1))
     result = minimize(cost_fnc_proj, list_init)
     coeff = np.array([-9.81/2, result.x[3]*sin(result.x[5]), result.x[2] - z_ref])
     tFin = np.amax(np.roots(coeff))
-    Fin = f_proj(result.x, tFin)
+    Fin = f_proj_1(tFin, result.x)
     point_ret = Point()
     point_ret.x = Fin[0]
     point_ret.y = Fin[1]
