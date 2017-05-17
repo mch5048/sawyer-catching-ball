@@ -1,6 +1,7 @@
 import rospy
 import time
 from visualization_msgs.msg import Marker 
+from geometry_msgs.msg import Point
 # more information in https://mirror.umd.edu/roswiki/doc/diamondback/api/visualization_msgs/html/msg/Marker.html
 
 class MarkerDrawer(object):
@@ -109,8 +110,8 @@ class MarkerDrawer(object):
         self.numtxt.color.g = rgba_arr[1]
         self.numtxt.color.b = rgba_arr[2]
         self.numtxt.color.a = rgba_arr[3]
-        p.z = p.z + floating_height
-        self.numtxt.pose.position = p 
+        # p.z = p.z + floating_height
+        self.numtxt.pose.position = Point(p.x, p.y, p.z + floating_height) 
         self.numtxt.text = str(self.numtxt_id_num)
         self.numtxt.lifetime = rospy.Duration.from_sec(lifetime)
         self.mk_pub.publish(self.numtxt)

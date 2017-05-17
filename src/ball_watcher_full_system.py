@@ -86,7 +86,7 @@ class BallWatcher(object):
         self.ball_marker = sawyer_mk.MarkerDrawer("/base", "ball", 500)
         self.drop_point = Point()
         self.drop_point_arr = []
-        self.pos_rec_list = np.array([])
+        # self.pos_rec_list = np.array([])
         self.pos_xyzt = np.array([])
         self.drop_point_marker = sawyer_mk.MarkerDrawer("/base", "dropping_ball", 500)
         self.ik_cont = IKController()
@@ -116,6 +116,7 @@ class BallWatcher(object):
         self.tf_timer = rospy.Timer(rospy.Duration(0.01), self.tf_update_cb)
         self.final_x_total = 0
         self.final_y_total = 0
+        self.init_guess = np.array([])
 
 
     def check_start_throw(self):
@@ -131,7 +132,8 @@ class BallWatcher(object):
         x_present = self.pos_rec[1].point.x
         if (x_present - x_past > 0):
             self.start_calc_flag = False
-            self.pos_rec_list = np.array([])
+            # self.pos_rec_list = np.array([])
+            self.pos_xyzt = np.array([])
             # print "test"
     def roll_mat(self, mat):
         row_num = len(mat)
@@ -208,7 +210,7 @@ class BallWatcher(object):
                     # calculate the dropping position based on 2 points
                     # print "##########"
                     # print "pos_rec_listB4: ", self.pos_rec_list
-                    self.pos_rec_list = np.append(self.pos_rec_list, self.pos_rec[0])
+                    # self.pos_rec_list = np.append(self.pos_rec_list, self.pos_rec[0])
                     if self.pos_xyzt.shape[0] == 0:
                         self.t_min = self.pos_rec[0].header.stamp
                         self.pos_xyzt = np.array([[self.pos_rec[0].point.x, self.pos_rec[0].point.y, self.pos_rec[0].point.z, self.pos_rec[0].header.stamp - self.t_min]])
@@ -220,28 +222,34 @@ class BallWatcher(object):
                     # self.pos_rec_list = (self.pos_rec_list).append(self.pos_rec[0])
                     # print "pos_rec_list: ", self.pos_rec_list
                     # print "##########"
-                    t_ompc = time.time()
-                    # self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
-                    self.drop_point = sawyer_calc.opt_min_proj_calc_1(self.pos_xyzt, Z_CENTER)
-                    print "t_ompc: ", (time.time() - t_ompc)*1000, " ms" 
-                    # average drop point
-                    # t_ip_ps = time.time()
-                    input_posestamped = PoseStamped()
-                    # print "t_ip_ps: ", (time.time() - t_ip_ps)*1000, " ms" 
-                    # t_p_pos = time.time()
-                    input_posestamped.pose.position = self.drop_point
-                    # print "t_p_pos: ", (time.time() - t_p_pos)*1000, " ms" 
-                    # t_ip_pose_or = time.time()
-                    input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
-                    # print "t_ip_pose_or: ", (time.time() - t_ip_pose_or)*1000, " ms" 
-                    # if self.pos_rec_list.shape[0] >=3:
-                    if self.pos_xyzt.shape[0] >=3:
+                    if self.pos_xyzt.shape[0] == 3:
+                        self.init_guess = sawyer_calc.opt_min_get_init_guess(self.pos_xyzt)
+                    if self.pos_xyzt.shape[0] >= 6:
+                        t_ompc = time.time()
+                        # self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
+                        # self.drop_point = sawyer_calc.opt_min_2Dproj_calc(self.pos_xyzt, self.init_guess,Z_CENTER)
+                        self.drop_point = sawyer_calc.opt_min_proj_calc_1(self.pos_xyzt, self.init_guess, Z_CENTER)
+                        print "t_ompc: ", (time.time() - t_ompc)*1000, " ms" 
+                        # average drop point
+                        # t_ip_ps = time.time()
+                        input_posestamped = PoseStamped()
+                        # print "t_ip_ps: ", (time.time() - t_ip_ps)*1000, " ms" 
+                        # t_p_pos = time.time()
+                        input_posestamped.pose.position = self.drop_point
+                        # print "t_p_pos: ", (time.time() - t_p_pos)*1000, " ms" 
+                        # t_ip_pose_or = time.time()
+                        input_posestamped.pose.orientation = Quaternion(0.0392407571798, 0.664506667783, -0.0505321422468, 0.744538483926)
+                        # print "t_ip_pose_or: ", (time.time() - t_ip_pose_or)*1000, " ms" 
+                        # if self.pos_rec_list.shape[0] >=3:
+                    # if self.pos_xyzt.shape[0] >=3:
                         # t_ik_loop = time.time()                        
                         self.ik_cont.running_flag = True
+                        self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
+                        self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
+                        # input_posestamped.pose.position.x -= 0.08
                         self.ik_cont.set_goal_from_pose(input_posestamped)
                         # print "t_ik_loop: ", (time.time() - t_ik_loop)*1000, " ms" 
-                    self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
-                    self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
+
                 # print "t_running_flag : ", (time.time() - trflag)*1000
             self.last_tf_time = self.pos_rec[0].header.stamp
         totaltime = (time.time() - tstarttotal)*1000
@@ -263,8 +271,9 @@ class BallWatcher(object):
                 self.running_flag = not self.running_flag
                 if not self.running_flag:
                     self.ball_marker.delete_all_mks()
-                    self.pos_rec_list = np.array([])
+                    # self.pos_rec_list = np.array([])
                     self.pos_xyzt = np.array([])
+                    self.init_guess = np.array([])
                     self.ik_cont.running_flag = False
             elif c == 'c':
                 rospy.loginfo("You pressed 'c', Start calibration\nrunning_flag = False")
