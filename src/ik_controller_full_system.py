@@ -137,7 +137,7 @@ class IKController( object ):
         if qd_over_vel != []:
             print "joint limit reach in: ", qd_over_vel
             qd_vel_lim_min = min(qd_over_vel, key=qd_over_vel.get)
-            f = 0.95
+            f = 0.7
             qdot = qdot/qdot_unclip[qd_vel_lim_min]*vel_lim[qd_vel_lim_min]*f
             print "reduce to: ", qdot
             print "with limit: ", vel_lim

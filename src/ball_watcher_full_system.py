@@ -155,6 +155,7 @@ class BallWatcher(object):
             self.start_calc_flag = False
             # self.pos_rec_list = np.array([])
             self.pos_xyzt = np.array([])
+            self.init_guess = np.array([])
             # print "test"
     def roll_mat(self, mat):
         row_num = len(mat)
@@ -205,9 +206,15 @@ class BallWatcher(object):
         # print "pos.point.x: ", pos.point.x
         # print "self.pos_rec[-1].point.x: ", self.pos_rec[-1].point.x
         # if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5) and (pos.point.x - self.pos_rec[-1].point.x < 1.2):
-        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5):
-            self.roll_mat(self.pos_rec)
-            self.pos_rec[-1] = pos
+        #### ROLL THE MAT
+        if not self.start_calc_flag:
+            if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5):
+                self.roll_mat(self.pos_rec)
+                self.pos_rec[-1] = pos
+        else:
+            if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5) and (pos.point.x - self.pos_rec[-1].point.x < 1.5):
+                self.roll_mat(self.pos_rec)
+                self.pos_rec[-1] = pos
         # choose only a non-repeated pos_rec by comparing between the timestamped of the present and past pos_rec
         if (self.last_tf_time != self.pos_rec[0].header.stamp):
             # If running_flag is True, start detecting
@@ -251,9 +258,13 @@ class BallWatcher(object):
                     # self.pos_rec_list = (self.pos_rec_list).append(self.pos_rec[0])
                     # print "pos_rec_list: ", self.pos_rec_list
                     # print "##########"
-                    if self.pos_xyzt.shape[0] == 3:
+
+                    # print self.pos_xyzt
+                    # print self.pos_xyzt.shape
+                    # print (self.pos_xyzt[self.pos_xyzt.shape[0]])
+                    if self.pos_xyzt.shape[0] == 4:
                         self.init_guess = sawyer_calc.opt_min_get_init_guess(self.pos_xyzt)
-                    if self.pos_xyzt.shape[0] >= 4:
+                    if self.pos_xyzt.shape[0] >= 4 and ((self.pos_xyzt[self.pos_xyzt.shape[0] - 1])[2] - (self.pos_xyzt[self.pos_xyzt.shape[0] - 2])[2] < 0):
                         t_ompc = time.time()
                         # self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
                         self.drop_point = sawyer_calc.opt_min_proj_calc_1(self.pos_xyzt, self.init_guess, Z_CENTER)
@@ -316,6 +327,9 @@ class BallWatcher(object):
                 rospy.loginfo("You pressed 'h', Go to home position\nrunning_flag = False")
                 self.running_flag = False
                 self.home_pos()
+                self.pos_xyzt = np.array([])
+                self.init_guess = np.array([])
+                self.ik_cont.running_flag = False
             elif c == 'p':
                 rospy.loginfo("You pressed 'h', Plotting")
                 self.plot_flag = True

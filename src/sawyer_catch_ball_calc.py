@@ -383,7 +383,7 @@ def reject_outliers_1(data, m=2.):
 
 def reject_outliers_nate(data):
    # take matrix and return the one with no outliers
-   if data is not None:
+   if data != []:
        rball = 0.03 # 3 cm in meters (estimate - Chainatee measure this)
        m = min(data)
        return [z for z in data if abs(z-m) < rball]
