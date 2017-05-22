@@ -69,7 +69,15 @@ Z_KINECT_CALIBR = 0.65747489
 ROLL_KINECT_CALIBR = 0
 PITCH_KINECT_CALIBR = -1.5708 
 YAW_KINECT_CALIBR = 0
-Z_CENTER = 0.317
+# Z_CENTER = 0.317
+# CENTER_X = 0.7
+# CENTER_Y = 0.
+Z_CENTER = 0.3164
+CENTER_X = 0.56034
+CENTER_Y = -0.1295634
+RANGE_X = 0.6
+RANGE_Y = 0.6
+RANGE_Z = 0.3
 
 class BallWatcher(object):
     def __init__(self):
@@ -118,6 +126,19 @@ class BallWatcher(object):
         self.final_y_total = 0
         self.init_guess = np.array([])
 
+    
+    def check_move_area(self, pos):
+        # right side area of sawyer is the square of 30x30 cm area
+        # left side area of sawyer is the semicircle of radius = 30 cm
+        if (pos.y < CENTER_Y - RANGE_Y) or \
+           (pos.y > CENTER_Y + RANGE_Y) or \
+           (pos.x < CENTER_X - RANGE_X) or \
+           (pos.x > CENTER_X + RANGE_X) or \
+           (pos.z < Z_CENTER - RANGE_Z) or \
+           (pos.z > Z_CENTER + RANGE_Z) :
+            return False
+        else:
+            return True
 
     def check_start_throw(self):
         # check if the ball is being thrown, by comparing between z of the first and second frame
@@ -187,9 +208,11 @@ class BallWatcher(object):
             # If running_flag is True, start detecting
             if self.running_flag:
                 trflag = time.time()
+                print "PRess s already"
                 # check if the ball is being thrown yet
                 if not self.start_calc_flag:
                     self.check_start_throw()
+                    print "Should draw sphere: #######################"
                     self.ball_marker.draw_spheres([0, 0.7, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
                     self.ball_marker.draw_line_strips([5.7, 1, 4.7, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
 
@@ -224,11 +247,11 @@ class BallWatcher(object):
                     # print "##########"
                     if self.pos_xyzt.shape[0] == 3:
                         self.init_guess = sawyer_calc.opt_min_get_init_guess(self.pos_xyzt)
-                    if self.pos_xyzt.shape[0] >= 6:
+                    if self.pos_xyzt.shape[0] >= 4:
                         t_ompc = time.time()
                         # self.drop_point = sawyer_calc.opt_min_proj_calc(self.pos_rec_list, Z_CENTER)
-                        # self.drop_point = sawyer_calc.opt_min_2Dproj_calc(self.pos_xyzt, self.init_guess,Z_CENTER)
                         self.drop_point = sawyer_calc.opt_min_proj_calc_1(self.pos_xyzt, self.init_guess, Z_CENTER)
+                        # self.drop_point = sawyer_calc.opt_min_proj_calc_1(self.pos_xyzt, self.init_guess, Z_CENTER)
                         print "t_ompc: ", (time.time() - t_ompc)*1000, " ms" 
                         # average drop point
                         # t_ip_ps = time.time()
@@ -243,11 +266,13 @@ class BallWatcher(object):
                         # if self.pos_rec_list.shape[0] >=3:
                     # if self.pos_xyzt.shape[0] >=3:
                         # t_ik_loop = time.time()                        
-                        self.ik_cont.running_flag = True
+
                         self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                         self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
-                        # input_posestamped.pose.position.x -= 0.08
-                        self.ik_cont.set_goal_from_pose(input_posestamped)
+                        input_posestamped.pose.position.x -= 0.06
+                        if self.check_move_area(input_posestamped.pose.position):
+                            self.ik_cont.running_flag = True
+                            self.ik_cont.set_goal_from_pose(input_posestamped)
                         # print "t_ik_loop: ", (time.time() - t_ik_loop)*1000, " ms" 
 
                 # print "t_running_flag : ", (time.time() - trflag)*1000
@@ -269,6 +294,7 @@ class BallWatcher(object):
             if c == 's':
                 rospy.loginfo("You pressed 's', Program starts. Sawyer is waiting for the ball to be thrown.")
                 self.running_flag = not self.running_flag
+                print "self.runningflag: ", self.running_flag
                 if not self.running_flag:
                     self.ball_marker.delete_all_mks()
                     # self.pos_rec_list = np.array([])

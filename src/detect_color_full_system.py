@@ -27,6 +27,7 @@ from sensor_msgs.msg import CameraInfo, Image
 from geometry_msgs.msg import Point, PointStamped
 from cv_bridge import CvBridge
 import cv2
+import cv2.cv
 import tf
 import rosbag
 import message_filters
@@ -40,6 +41,7 @@ import matplotlib.patches as mpatches
 import os
 import time
 import csv
+import copy
 
 
 #################
@@ -51,8 +53,17 @@ import sawyer_catch_ball_calc as sawyer_calc
 
 #GLOBAL VARIABLES
 GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255]
+# GREEN_TB_HIGHS = [179, 255, 255, 179, 255, 255, 15,15, 255, 255, 255, 255, 255, 255,
+#                   255, 255]
 # GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 133, 0, 201, 255, 255]
-GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 100, 0, 148, 255, 255]
+# GREEN_TB_DEFAULTS = [27, 105, 110, 66, 255, 255,  2, 8, 0, 100, 0, 148, 255, 255]
+# GREEN_TB_DEFAULTS = [23, 105, 110, 66, 255, 255,  2, 8, 0, 100, 0, 148, 255, 255] ## Willens wing (The best one)
+GREEN_TB_DEFAULTS = [25, 83, 113, 86, 255, 255,  2, 8, 0, 51, 86, 255, 255, 255] ## Willens wing (In front of RJ)
+# GREEN_TB_DEFAULTS = [23, 0, 83, 64, 255, 255,  2, 8, 0, 0, 0, 255, 255, 255] ## Willens wing (3-5pm)
+# GREEN_TB_DEFAULTS = [0, 0, 148, 88, 189, 255, 2, 8, 111, 0, 0, 255, 255, 255,
+#                      0, 0] ## Willens wing (Cloudy) (Not yet finished)
+# GREEN_TB_DEFAULTS = [0, 0, 255, 66, 0, 255, 2, 8, 111, 0, 0, 255, 255, 255,
+#                      255, 255] ## Willens wing (With Orange light (around 3-5 pm))
 WITHIN_RAN_MIN = 0
 WITHIN_RAN_MAX = 3
 OUTLIER_FILT_NUM = 0.25
@@ -167,7 +178,10 @@ class Obj3DDetector(object):
     def time_sync_img_cb(self, rgb_img, depth_img):
         # rgb image process
         # tstart = time.time()
-        if self.color_track(rgb_img) is False:
+        # if self.color_track_3to5pm(rgb_img) is False:
+        # if self.color_track(rgb_img) is False:
+        if self.color_track_front_RJ(rgb_img) is False:
+        # if self.color_track_edge_willen_wing(rgb_img) is False:
             print "color detection error"
             return
         # print "color_track: ", (time.time() - tstart)*1000 ,"ms"
@@ -245,14 +259,65 @@ class Obj3DDetector(object):
         pos.x = pos_in_space[0]
         pos.y = pos_in_space[1]
         pos.z = pos_in_space[2]
+
         if not np.isnan(depth):
             # only send tf out if depth is not equal to 0 which is the case of null set being input into filters
             if scale != 0:
                 t_stamp = depth_img.header.stamp.secs + (depth_img.header.stamp.nsecs)*(10**(-9))
                 self.p_ball_to_cam = np.array([pos.z,-pos.x,-pos.y, t_stamp])
 
+    def color_track_3to5pm(self, ros_img):
+        # For when the orange light of Willens Wing is turned on
+        img_raw = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")        
+        gray_image = cv2.cvtColor(img_raw, cv2.COLOR_BGR2GRAY)
+        # cv2.imshow('gray_image', gray_image)
+        # cv2.waitKey(1)
 
-    def color_track(self, ros_img):
+        vals = self.tb_val.get_vals()
+        b = vals[8:14]
+        v = vals[0:6]
+        e = vals[6:8]
+        gs = vals[14:16]
+        im_gray_inrange = cv2.inRange(gray_image, gs[0], gs[1])
+        # cv2.imshow('im_gray_inrange', im_gray_inrange)
+        # cv2.waitKey(1)        
+
+        kernel_dilate = np.ones((4,4),np.uint8)
+        im_dilate = cv2.dilate(im_gray_inrange, kernel_dilate, iterations=2)  
+        # cv2.imshow('gray_dilate_image', im_dilate)
+        # cv2.waitKey(1)
+
+        im_rgb = cv2.bitwise_and(img_raw, img_raw, mask = im_dilate)
+        # cv2.imshow('im_gray_inrange_rgb', im_rgb)
+        # cv2.waitKey(1)   
+
+        ###### HSV RANGE
+        img_hsv = cv2.cvtColor(im_rgb, cv2.COLOR_BGR2HSV)  
+        low_vals_lo = np.array([v[0], v[1], v[2]])
+        high_vals_lo = np.array([v[3], v[4], v[5]])
+        im_hsv_ir = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
+        cv2.imshow('image_hsv_inrange', im_hsv_ir)
+        cv2.waitKey(1) 
+        ######
+
+        ###### RGB RANGE 
+        # img_bgr = cv2.cvtColor(im_hsv_ir, cv2.COLOR_HSV2BGR) 
+        # bgr_lo = np.array([b[0], b[1], b[2]])
+        # bgr_hi = np.array([b[3], b[4], b[5]])
+        # im_rgb_inrange = cv2.inRange(img_bgr, bgr_lo, bgr_hi) #mask black portion out
+        # cv2.imshow('image_b_inrange', im_rgb_inrange)
+        # cv2.waitKey(1) 
+        ######
+
+        ###### ERODE
+        kernel_erode = np.ones((e[0],e[0]),np.uint8)
+        im_erode = cv2.erode(im_hsv_ir, kernel_erode, iterations=2)
+        cv2.imshow('im_erode', im_erode)
+        cv2.waitKey(1)
+        ######
+
+
+    def color_track_edge_willen_wing(self, ros_img):
         # cv_image = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
         img_raw = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
         # print img_raw.shape
@@ -261,17 +326,103 @@ class Obj3DDetector(object):
         # cv2.rectangle(img_raw, (0,0), (40,240), (0,0,0), -1)
         # print img_raw.shape
         vals = self.tb_val.get_vals()
-        # b = GREEN_TB_DEFAULTS[8:14]
-        # v = GREEN_TB_DEFAULTS[0:6]
-        # e = GREEN_TB_DEFAULTS[6:8]
         b = vals[8:14]
         v = vals[0:6]
         e = vals[6:8]
+        gs = vals[14:16]
         black_lo = np.array([b[0], b[1], b[2]])
         black_hi = np.array([b[3], b[4], b[5]])
-        im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
+
+        # im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
         # cv2.imshow('image_b_to_w', im_b_to_w)
         # cv2.waitKey(1) 
+
+        img_hsv = cv2.cvtColor(img_raw, cv2.COLOR_BGR2HSV)  
+        # cv2.imshow('image_hsv', img_hsv)
+        # cv2.waitKey(1) 
+        # low and high band for detecting red color in hsv which spans at each end of h-band
+        low_vals_lo = np.array([v[0], v[1], v[2]])
+        high_vals_lo = np.array([v[3], v[4], v[5]])
+        im_hsv_ir = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
+        cv2.imshow('image_hsv', im_hsv_ir)
+        cv2.waitKey(1) 
+        # cv2.imshow('image_hsv_ir', im_hsv_ir)
+        # cv2.waitKey(1)        
+
+        ##### Gaussian Blur
+        img_hsv_ir_blur = cv2.GaussianBlur(im_hsv_ir, (9,9), 1)
+
+
+        ##### BGR Range
+        im_hsv_filt = cv2.bitwise_and(img_raw, img_raw, mask = img_hsv_ir_blur)        
+        black_lo = np.array([b[0], b[1], b[2]])
+        black_hi = np.array([b[3], b[4], b[5]])  
+        im_bgr_ir = cv2.inRange(im_hsv_filt, black_lo, black_hi) #mask black portion out
+        cv2.imshow('image_bgr_ir', im_bgr_ir)
+        cv2.waitKey(1)      
+        #####
+
+        kernel_erode = np.ones((e[0],e[0]),np.uint8)
+        kernel_dilate = np.ones((e[1],e[1]),np.uint8)
+        im_erode = cv2.erode(im_bgr_ir, kernel_erode, iterations=2)
+        # im_erode_rgb = cv2.bitwise_and(img_raw, img_raw, mask = im_erode)
+        # cv2.imshow('image_erode', im_erode_rgb)
+        # cv2.waitKey(1)
+        im_dilate = cv2.dilate(im_erode, kernel_dilate, iterations=2)  
+        # cv2.imshow('image_dilate', im_dilate)
+        # cv2.waitKey(1)   
+        # img_detect_color, coords = self.specific_color_filter(cv_image)
+        # imContours = cv2.findContours(im_total.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+        imContours = cv2.findContours(im_dilate, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+        center = None
+        tstart = time.time()
+        # only proceed if at least one contour was found
+        if len(imContours) > 0:
+            # find the largest contour in the mask, then use it to compute the minimum enclosing circle and centroid
+            c = max(imContours, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(c)
+            M = cv2.moments(c)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            # only proceed if the radius meets a minimum size
+            if radius > 10:
+                # draw the circle and centroid on the frame,
+                # then update the list of tracked points
+                cv2.circle(img_raw, (int(x), int(y)), int(radius),(0, 255, 255), 2)
+                cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
+                self.ball_radius = int(radius)
+        tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_dilate)
+        try:
+            coords = list(center)
+        except TypeError:
+            print "lost points: ", self.cp
+            self.cp += 1
+            return False
+        cv2.imshow('image_final', tracked_color_im)
+        cv2.waitKey(1)
+        self.tracked_pixel.x = coords[0]
+        self.tracked_pixel.y = coords[1]
+        return True
+
+
+    def color_track_front_RJ(self, ros_img):
+        # cv_image = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+        img_raw = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+        # print img_raw.shape
+        # img_raw = cv2.resize(img_raw, (0,0), fx=0.5, fy=0.5) ###RESIZE if it's not the same size
+        # print img_raw.shape
+        # cv2.rectangle(img_raw, (0,0), (40,240), (0,0,0), -1)
+        # print img_raw.shape
+        vals = self.tb_val.get_vals()
+        b = vals[8:14]
+        v = vals[0:6]
+        e = vals[6:8]
+        gs = vals[14:16]
+        black_lo = np.array([b[0], b[1], b[2]])
+        black_hi = np.array([b[3], b[4], b[5]])
+
+        im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
+        cv2.imshow('image_b_to_w', im_b_to_w)
+        cv2.waitKey(1) 
         im_b_to_w_color = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
         # cv2.imshow('image_b_to_w_color', im_b_to_w_color)
         # cv2.waitKey(1) 
@@ -285,13 +436,95 @@ class Obj3DDetector(object):
         low_vals_lo = np.array([v[0], v[1], v[2]])
         high_vals_lo = np.array([v[3], v[4], v[5]])
         im_hsv_ir = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
+        cv2.imshow('image_hsv_ir', im_hsv_ir)
+        cv2.waitKey(1) 
+        # cv2.imshow('image_hsv', im_hsv_ir)
+        # cv2.waitKey(1) 
         # cv2.imshow('image_hsv_ir', im_hsv_ir)
         # cv2.waitKey(1)        
         kernel_erode = np.ones((e[0],e[0]),np.uint8)
         kernel_dilate = np.ones((e[1],e[1]),np.uint8)
         im_erode = cv2.erode(im_hsv_ir, kernel_erode, iterations=2)
-        # cv2.imshow('image_erode', im_erode)
+        im_erode_rgb = cv2.bitwise_and(img_raw, img_raw, mask = im_erode)
+        cv2.imshow('image_erode', im_erode_rgb)
+        cv2.waitKey(1)
+        im_dilate = cv2.dilate(im_erode, kernel_dilate, iterations=2)  
+        # cv2.imshow('image_dilate', im_dilate)
         # cv2.waitKey(1)   
+        # img_detect_color, coords = self.specific_color_filter(cv_image)
+        # imContours = cv2.findContours(im_total.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+        imContours = cv2.findContours(im_dilate, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
+        center = None
+        tstart = time.time()
+        # only proceed if at least one contour was found
+        if len(imContours) > 0:
+            # find the largest contour in the mask, then use it to compute the minimum enclosing circle and centroid
+            c = max(imContours, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(c)
+            M = cv2.moments(c)
+            center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            # only proceed if the radius meets a minimum size
+            if radius > 10:
+                # draw the circle and centroid on the frame,
+                # then update the list of tracked points
+                cv2.circle(img_raw, (int(x), int(y)), int(radius),(0, 255, 255), 2)
+                cv2.circle(img_raw, center, 5, (0, 0, 255), -1)
+                self.ball_radius = int(radius)
+        tracked_color_im = cv2.bitwise_and(img_raw, img_raw, mask = im_dilate)
+        try:
+            coords = list(center)
+        except TypeError:
+            print "lost points: ", self.cp
+            self.cp += 1
+            return False
+        cv2.imshow('image_final', tracked_color_im)
+        cv2.waitKey(1)
+        self.tracked_pixel.x = coords[0]
+        self.tracked_pixel.y = coords[1]
+        return True
+
+    def color_track(self, ros_img):
+        # cv_image = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+        img_raw = self.bridge.imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+        # print img_raw.shape
+        # img_raw = cv2.resize(img_raw, (0,0), fx=0.5, fy=0.5) ###RESIZE if it's not the same size
+        # print img_raw.shape
+        # cv2.rectangle(img_raw, (0,0), (40,240), (0,0,0), -1)
+        # print img_raw.shape
+        vals = self.tb_val.get_vals()
+        b = vals[8:14]
+        v = vals[0:6]
+        e = vals[6:8]
+        gs = vals[14:16]
+        black_lo = np.array([b[0], b[1], b[2]])
+        black_hi = np.array([b[3], b[4], b[5]])
+
+        im_b_to_w = cv2.inRange(img_raw, black_lo, black_hi) #mask black portion out
+        cv2.imshow('image_b_to_w', im_b_to_w)
+        cv2.waitKey(1) 
+        im_b_to_w_color = cv2.bitwise_and(img_raw, img_raw, mask = im_b_to_w)
+        # cv2.imshow('image_b_to_w_color', im_b_to_w_color)
+        # cv2.waitKey(1) 
+        # img_blur = cv2.GaussianBlur(im_b_to_w_color, (9,9), 1)
+        # cv2.imshow('image_blur', img_blur)
+        # cv2.waitKey(1) 
+        img_hsv = cv2.cvtColor(im_b_to_w_color, cv2.COLOR_BGR2HSV)  
+        # cv2.imshow('image_hsv', img_hsv)
+        # cv2.waitKey(1) 
+        # low and high band for detecting red color in hsv which spans at each end of h-band
+        low_vals_lo = np.array([v[0], v[1], v[2]])
+        high_vals_lo = np.array([v[3], v[4], v[5]])
+        im_hsv_ir = cv2.inRange(img_hsv, low_vals_lo, high_vals_lo)
+        cv2.imshow('image_hsv', im_hsv_ir)
+        cv2.waitKey(1) 
+        # cv2.imshow('image_hsv_ir', im_hsv_ir)
+        # cv2.waitKey(1)        
+        kernel_erode = np.ones((e[0],e[0]),np.uint8)
+        kernel_dilate = np.ones((e[1],e[1]),np.uint8)
+        im_erode = cv2.erode(im_hsv_ir, kernel_erode, iterations=2)
+        # im_erode_rgb = cv2.bitwise_and(img_raw, img_raw, mask = im_erode)
+        # cv2.imshow('image_erode', im_erode_rgb)
+        # cv2.waitKey(1)
         im_dilate = cv2.dilate(im_erode, kernel_dilate, iterations=2)  
         # cv2.imshow('image_dilate', im_dilate)
         # cv2.waitKey(1)   

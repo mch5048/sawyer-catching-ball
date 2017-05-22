@@ -52,7 +52,7 @@ FREQ = 100
 DAMPING = 0.02
 ARM = "right"
 STEP_SCALE = 1.0
-JOINT_VEL_LIMIT = 1.5
+JOINT_VEL_LIMIT = 1.328
 
 # once the ball is thrown
 # 1.) running flag = True
@@ -129,28 +129,31 @@ class IKController( object ):
         # increase velocity in each joint
         multiplier = 4
         qdot = qdot*multiplier
-        # clip down velocity in each joint
-        if np.amax(qdot) > self.joint_vel_limit:
-            qdot = qdot/np.amax(qdot)*self.joint_vel_limit
+        ########Clip down algorithm
+        # joint vel lim dict
+        vel_lim = {'right_j0': 1.74, 'right_j1': 1.328, 'right_j2': 1.957, 'right_j3': 1.957, 'right_j4': 3.485, 'right_j5': 3.485, 'right_j6': 4.545}
+        qdot_unclip = dict(zip(self.joint_names, qdot))
+        qd_over_vel = [qd for qd in qdot_unclip if qdot_unclip[qd] > vel_lim[qd]]
+        if qd_over_vel != []:
+            print "joint limit reach in: ", qd_over_vel
+            qd_vel_lim_min = min(qd_over_vel, key=qd_over_vel.get)
+            f = 0.95
+            qdot = qdot/qdot_unclip[qd_vel_lim_min]*vel_lim[qd_vel_lim_min]*f
+            print "reduce to: ", qdot
+            print "with limit: ", vel_lim
         self.qdot_dict = dict(zip(self.joint_names, qdot))
-        # names = ['right_j0', 'right_j1', 'right_j2', 'right_j3', 'right_j4', 'right_j5', 'right_j6']
-        # print "max vel joint : ", names[qdot.index(np.amax(qdot))], " : ", qdot[qdot.index(np.amax(qdot))]
-        # print "max vel joint : ", names[np.where(qdot == np.amax(qdot))[0]], " : ", qdot[np.where(qdot == np.amax(qdot))[0]]
 
-        if np.amax(qdot) > self.joint_vel_limit:
-            print "joint limit reach !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    
-        # self.q_sim += self.step_scale*qdot
-        # self.qdot = qdot
-        # self.joint_cmd.velocity = qdot 
-        # return
-
+        # clip down velocity in each joint
+        # if np.amax(qdot) > self.joint_vel_limit:
+        #     print "joint limit reach !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        #     qdot = qdot/np.amax(qdot)*self.joint_vel_limit
+        # self.qdot_dict = dict(zip(self.joint_names, qdot))
 
     def ik_step_timercb(self, tdat):
     # perform step inverse kinematics if running_flag is true
         if self.running_flag:
             self.step_ik()
-            # self.limb_interface.set_joint_velocities(self.qdot_dict)
+            self.limb_interface.set_joint_velocities(self.qdot_dict)
             # print self.qdot_dict
         #     # publish joint command timeout
         #     self.joint_cmd_timeout_pub.publish(JOINT_CMD_FREQ)

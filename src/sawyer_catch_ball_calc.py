@@ -108,8 +108,6 @@ def f_proj_1(t,lis):
 def opt_min_proj_calc_1(ps_xyzt, init_guess, z_ref):
 ### Optimize
     # list_init = np.zeros(6)
-    print "##################START##################"
-    print "z_ref: ", z_ref
     def cost_fnc_proj(ls):
         # a = time.time()
         b = sum(np.linalg.norm(f_proj_1(ps_xyzt[:,3],ls).T - ps_xyzt[:,:3], axis = 1))
@@ -125,8 +123,6 @@ def opt_min_proj_calc_1(ps_xyzt, init_guess, z_ref):
     point_ret.x = Fin[0]
     point_ret.y = Fin[1]
     point_ret.z = Fin[2]
-    print "result.x[2]: ", result.x[2]
-    print "point_ret.z: ", point_ret.z ,"\r\n"
     return point_ret
 
 def opt_min_get_init_guess(ps_xyzt):
@@ -149,21 +145,18 @@ def f_proj_2D(t,lis):
                      ,lis[1] + Vo*sin(theta)*t - 9.81/2*(t**2)])
 
 
-def opt_min_2Dproj_calc(ps_xyzt, z_ref):
+def opt_min_2Dproj_get_init_guess(ps_xyzt):
     # find alpha, the angle for projecting point to plane
     ps_x = ps_xyzt[:,0]
     ps_y = ps_xyzt[:,1]
     ps_z = ps_xyzt[:,2]
-    # print "ps_xyzt: ", ps_xyzt
-    # print "ps_x: ", ps_x
-    # print "ps_y: ", ps_y
-    # print "ps_z: ", ps_z
     s = np.array([atan2((ps_y[i+1] - ps_y[i]),(ps_x[i+1] - ps_x[i])) for i in range(ps_xyzt.shape[0] - 2)])
-    # s = (s + 2*np.pi) % (2 * np.pi) 
-    s = (s + 2*np.pi) % (2 * np.pi)
-    print "atan2 array: ", s
-    # alpha = np.mean(s) % (2 * np.pi)    
-    print "alpha: ", alpha
+    for i in range(s.shape[0]):
+        # print "i: ", s[i]
+        if s[i] < 0:
+            # print "i < than zero"
+            s[i] = s[i] + (2*np.pi)
+    alpha = np.mean(s) 
     # project into 2D plane
     list_init = np.zeros(4)
     def cost_fnc_proj(ls):
@@ -171,6 +164,24 @@ def opt_min_2Dproj_calc(ps_xyzt, z_ref):
         b = sum(np.linalg.norm(f_proj_2D(ps_xyzt[:,3],ls).T - ps_lz, axis = 1))       
         return b
     result = minimize(cost_fnc_proj, list_init)
+    return result.x
+
+def opt_min_2Dproj_calc_2(ps_xyzt, init_guess, z_ref):
+    # find alpha, the angle for projecting point to plane
+    ps_x = ps_xyzt[:,0]
+    ps_y = ps_xyzt[:,1]
+    ps_z = ps_xyzt[:,2]
+    s = np.array([atan((ps_y[i+1] - ps_y[i])/(ps_x[i+1] - ps_x[i])) for i in range(ps_xyzt.shape[0] - 2)])
+    print "atan2 array: ", s
+    alpha = np.mean(s) 
+    print "alpha: ", alpha
+    # project into 2D plane
+    # list_init = np.zeros(4)
+    def cost_fnc_proj(ls):
+        ps_lz = np.array([ps_x/cos(alpha), ps_z]).T        
+        b = sum(np.linalg.norm(f_proj_2D(ps_xyzt[:,3],ls).T - ps_lz, axis = 1))       
+        return b
+    result = minimize(cost_fnc_proj, init_guess)
     coeff = np.array([-9.81/2, result.x[2]*sin(result.x[3]), result.x[1] - z_ref])
     tFin = np.amax(np.roots(coeff))
     Fin = f_proj_2D(tFin, result.x)
@@ -181,7 +192,45 @@ def opt_min_2Dproj_calc(ps_xyzt, z_ref):
     point_ret.z = Fin[1]
     return point_ret
 
-    return
+
+def opt_min_2Dproj_calc(ps_xyzt, init_guess, z_ref):
+    # find alpha, the angle for projecting point to plane
+    ps_x = ps_xyzt[:,0]
+    ps_y = ps_xyzt[:,1]
+    ps_z = ps_xyzt[:,2]
+    s = np.array([atan2((ps_y[i+1] - ps_y[i]),(ps_x[i+1] - ps_x[i])) for i in range(ps_xyzt.shape[0] - 2)])
+    print "atan2 array B4: ", s
+    for i in range(s.shape[0]):
+        # print "i: ", s[i]
+        if s[i] < 0:
+            # print "i < than zero"
+            s[i] = s[i] + (2*np.pi)
+    print "atan2 array AT: ", s
+    alpha = np.mean(s)
+    print "alpha B4: ", alpha
+    if alpha > np.pi:
+        alpha -= (2*np.pi)
+    print "alpha AT: ", alpha
+    # project into 2D plane
+    # list_init = np.zeros(4)
+    def cost_fnc_proj(ls):
+        ps_lz = np.array([ps_x/cos(alpha), ps_z]).T        
+        b = sum(np.linalg.norm(f_proj_2D(ps_xyzt[:,3],ls).T - ps_lz, axis = 1))       
+        return b
+    result = minimize(cost_fnc_proj, init_guess)
+    coeff = np.array([-9.81/2, result.x[2]*sin(result.x[3]), result.x[1] - z_ref])
+    tFin = np.amax(np.roots(coeff))
+    Fin = f_proj_2D(tFin, result.x)
+    print "Fin: ", Fin
+    #find final position
+    point_ret = Point()
+    point_ret.x = Fin[0]*cos(alpha)
+    point_ret.y = Fin[0]*sin(alpha)
+    print "Fin[0]*cos(alpha): ", Fin[0]*cos(alpha)
+    print "Fin[0]*sin(alpha): ", Fin[0]*sin(alpha), "\r\n#################\r\n\r\n"
+    point_ret.z = Fin[1]
+    return point_ret
+
 
 def opt_min_proj_calc(ps_list, z_ref):
     list_init = np.zeros(6)
