@@ -170,7 +170,7 @@ class BallWatcher(object):
         self.p_cb = self.objDetector.p_ball_to_cam
         # print self.p_cb
         if (self.p_cb == []):
-            # print "Please wait, the system is detecting the ball"
+            print "Please wait, the system is detecting the ball at", time.time() 
             return
         
         # try:
@@ -200,19 +200,25 @@ class BallWatcher(object):
         pos.point.y  = p_sb[1][0]
         pos.point.z  = p_sb[2][0]
         # filter repeated received tf out
-        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5) and (pos.point.x - self.pos_rec[-1].point.x < 1.2):
+        # print "run always", time.time()
+        # print "check", (pos.point.x - self.pos_rec[-1].point.x < 1.2)
+        # print "pos.point.x: ", pos.point.x
+        # print "self.pos_rec[-1].point.x: ", self.pos_rec[-1].point.x
+        # if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5) and (pos.point.x - self.pos_rec[-1].point.x < 1.2):
+        if (self.pos_rec[-1].header.stamp != pos.header.stamp) and (self.pos_rec[-1].point.x != pos.point.x) and (pos.point.x < 3.5):
             self.roll_mat(self.pos_rec)
             self.pos_rec[-1] = pos
         # choose only a non-repeated pos_rec by comparing between the timestamped of the present and past pos_rec
         if (self.last_tf_time != self.pos_rec[0].header.stamp):
             # If running_flag is True, start detecting
+            # print "run b4 press s 2",time.time()
             if self.running_flag:
                 trflag = time.time()
-                print "PRess s already"
+                # print "Press s already"
                 # check if the ball is being thrown yet
                 if not self.start_calc_flag:
                     self.check_start_throw()
-                    print "Should draw sphere: #######################"
+                    # print "Should draw sphere: #######################"
                     self.ball_marker.draw_spheres([0, 0.7, 0, 1], [0.03, 0.03,0.03], self.pos_rec[0].point)
                     self.ball_marker.draw_line_strips([5.7, 1, 4.7, 1], [0.01, 0,0], self.pos_rec[0].point, self.pos_rec[1].point)
 
@@ -270,6 +276,7 @@ class BallWatcher(object):
                         self.drop_point_marker.draw_spheres([0, 0, 0.7, 1], [0.03, 0.03,0.03], self.drop_point)
                         self.drop_point_marker.draw_numtxts([1, 1, 1, 1], 0.03, self.drop_point, 0.03)
                         input_posestamped.pose.position.x -= 0.06
+                        print "check drop point: ", input_posestamped.pose.position
                         if self.check_move_area(input_posestamped.pose.position):
                             self.ik_cont.running_flag = True
                             self.ik_cont.set_goal_from_pose(input_posestamped)
@@ -292,9 +299,9 @@ class BallWatcher(object):
             else:
                 print c
             if c == 's':
-                rospy.loginfo("You pressed 's', Program starts. Sawyer is waiting for the ball to be thrown.")
+                # rospy.loginfo("You pressed 's', Program starts. Sawyer is waiting for the ball to be thrown.")
                 self.running_flag = not self.running_flag
-                print "self.runningflag: ", self.running_flag
+                print "\r\n\r\n self.runningflag: ", self.running_flag, "\r\n"
                 if not self.running_flag:
                     self.ball_marker.delete_all_mks()
                     # self.pos_rec_list = np.array([])
